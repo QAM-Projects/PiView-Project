@@ -28,6 +28,8 @@ from PIL import ImageTk
 from PIL import Image
 import os
 
+
+QAM_GREEN = "#7fa6a3"
 #have a method for checking if the usb chords are plugged in correctly
 #method would write serial command and check for correct response from analyzer
 #def check_serial():
@@ -226,7 +228,7 @@ def get_O2():
         bytesize=serial.EIGHTBITS,\
         timeout = 0)
 
-    sleepy = 0.05
+    sleepy = 0.04
     i=0
     fullcommand = bytearray([1,2,1,0,0,3,13])
     ser.write(fullcommand)
@@ -273,7 +275,7 @@ def get_h20():
     echo = bytearray()
     command=bytearray([146])
     operand =bytearray([1])
-    sleepy = 0.05
+    sleepy = 0.02
     
     ser = serial.Serial(
     port='/dev/ttyUSB1',\
@@ -281,33 +283,39 @@ def get_h20():
     parity=serial.PARITY_NONE,\
     stopbits=serial.STOPBITS_ONE,\
     bytesize=serial.EIGHTBITS,\
-    timeout = 0.05)
+    timeout = 0)
     
     data = bytearray()
     ser.write(command) #send command byte
-    echo = ser.read(10) #recieve command byte
+    time.sleep(sleepy)
+    echo = ser.read(1) #recieve command byte
     data = data + echo
     
     
     ser.write(operand)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(2)
     data = data + echo
     
     ser.write(bytearray([echo[-1]]))
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     ser.write(bytearray([echo[-1]]))
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     ser.write(bytearray([echo[-1]]))
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     
     ser.write(bytearray([echo[-1]]))
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     return(data)
 
@@ -360,7 +368,10 @@ LARGEST_FONT = ("Century Gothic", 20, 'bold')
 LARGE_FONT = ("Century Gothic", 14, 'bold')
 SMALL_FONT = ("Century Gothic", 8)
 style.use("ggplot")
-
+global o2IsWorking
+o2IsWorking = True
+global h2oIsWorking
+h2oIsWorking = True
 f1 = Figure(figsize=(4,3),dpi=100)
 f2 = Figure(figsize=(4,3),dpi=100)
 a1 = f1.add_subplot(111)
@@ -377,14 +388,32 @@ start_timee = start_time.strftime("%m_%d_%y_%I:%M:%S")
 
 #RPiReader class unpacks and shows pages. Also holds the window title and icon. Any new pages need to be added to self.frames{}
 
+class Splash(tk.Toplevel):
+    def __init__(self, parent):
+        tk.Toplevel.__init__(self, parent)
+        self.title("Splash")
+        self.gambar = Image.open('qam_logo_transparent(1.5k).png')
+        self.imgSplash = ImageTk.PhotoImage(self.gambar)
+        self.img = Label(self, image=self.imgSplash, bg="grey25")
+        self.img.image = self.imgSplash
+        self.img.grid(row=1,column=1, sticky=N)
+        self.update()
+        
+
+
 class RPiReader(tk.Tk):
     def __init__(self, *args, **kwargs): #args are variables. kwargs are keyboard args (dictionarys and such)
     
         tk.Tk.__init__(self, *args, **kwargs)
+        self.withdraw()
+        splash=Splash(self)
         
-        #tk.Tk.iconbitmap(self,default="insert qam icon") #create .ico for qam icon
+        #tk.Tk.iconbitmap(self,default="qam_logo_icon.ico")
         tk.Tk.wm_title(self, "Pi-View")
         
+        time.sleep(3)
+        splash.destroy()
+        self.deiconify()
         container = tk.Frame(self)
         container.grid(row=0, column=0, sticky="nsew")
         container.grid_rowconfigure(0, weight=1)
@@ -392,7 +421,7 @@ class RPiReader(tk.Tk):
         
         self.frames = { }
         
-        for F in (Splash, StartPage, PageOne, PageTwo):
+        for F in (StartPage, PageOne, PageTwo, FieldsScreen):
             
             frame = F(container, self)
             
@@ -408,23 +437,11 @@ class RPiReader(tk.Tk):
         frame = self.frames[cont]
         frame.tkraise()
 
-class Splash(tk.Frame):
-    
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        label = tk.Label(self, text="SPLASH SCREEN... put a big logo here", font=LARGE_FONT)
-        label.grid(row=1,column=1)
-        label.config(bg="grey25")
-        
-        self.gambar = Image.open('QAM Logo.jpg')
-        self.imgSplash = ImageTk.PhotoImage(self.gambar)
-        self.img = Label(self, image=self.imgSplash)
-        self.img.image = self.imgSplash
-        self.img.grid(row=2,column=1,columnspan=4,rowspan=15)
         
         
-        button1 = ttk.Button(self, text="Enter", command=lambda: controller.show_frame(StartPage))
-        button1.grid(row=3,column=4)
+        
+        #button1 = ttk.Button(self, text="Enter", command=lambda: controller.show_frame(StartPage))
+        #button1.grid(row=3,column=4)
         
         
 
@@ -435,11 +452,143 @@ class Splash(tk.Frame):
 class StartPage(tk.Frame):
     recording = False
     
-    def start_show_test(self, controller):
-        controller.show_frame(PageOne)
-        self.record()
+
         
     
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        label1 = tk.Label(self, text="Main Screen", font=LARGEST_FONT)
+        label1.grid(row=1,column=2, columnspan=5, sticky=N)
+        label1.config(bg="grey25", fg=QAM_GREEN)
+        
+        self.configure(background="grey25")
+        
+        
+        
+        with open('Header_default.csv', newline='') as t:
+                headreader = csv.reader(t)
+                global header_list
+                header_list = []
+                for row in headreader:
+                        header_list.append(row[0])
+        
+        global title
+        global client
+        global test_gas
+        global source_gas
+        global technician
+        global system_flow
+        global comments
+        global deltaf_serial
+        global deltaf_cal
+        global deltaf_flow
+        global deltaf_spec
+        global tracer_serial
+        global tracer_cal
+        global tracer_flow
+        global tracer_spec
+        title = header_list[0]
+        client = header_list[1]
+        test_gas = header_list[2]
+        source_gas = header_list[3]
+        technician = header_list[4]
+        system_flow = header_list[5]
+        comments = header_list[6]
+        deltaf_serial = header_list[7]
+        deltaf_cal = header_list[8]
+        deltaf_flow = header_list[9]
+        deltaf_spec = header_list[10]
+        tracer_serial = header_list[11]
+        tracer_cal = header_list[12]
+        tracer_flow = header_list[13]
+        tracer_spec = header_list[14]
+        print(title)
+        
+        paddx = 15
+        paddy = 15
+        
+        var1 = StringVar()
+        def h2o_selected():
+            print(var1.get())
+            #Label(self, text="Select the H2O CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="DeepSkyBlue", justify="right").place(x=69,y=108)
+            #Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="white", command=open1).place(height=50, width=125, x=450, y=102)
+            #Label(self, text="Select the O2 CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="Grey50", justify="right").place(x=75,y=188)
+            #Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="Grey25", state="disabled").place(height=50, width=125, x=450, y=185)
+
+        def o2_selected():
+            print(var1.get())
+            #Label(self, text="Select the O2 CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="SpringGreen3", justify="right").place(x=75,y=188)
+            #Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="white", command=open2).place(height=50, width=125, x=450, y=185)
+            #Label(self, text="Select the H2O CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="Grey50", justify="right").place(x=69,y=108)
+            #Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="Grey25", state="disabled").place(height=50, width=125, x=450, y=102)
+
+        def both_selected():
+            print(var1.get())
+            #Label(self, text="Select the H2O CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="DeepSkyBlue", justify="right").place(x=69,y=108)
+            #Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="white", command=open1).place(height=50, width=125, x=450, y=102)
+            #Label(self, text="Select the O2 CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="SpringGreen3", justify="right").place(x=75,y=188)
+            #Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="white", command=open2).place(height=50, width=125, x=450, y=185)
+
+        s1 = ttk.Style()
+        s1.configure("h2o.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="#00BFFF")
+        s1.configure("o2.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="#00CD66")
+        s1.configure("both.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="Orange")
+
+        # Radiobuttons
+        rad_h2o = ttk.Radiobutton(self, text="H2O", style="h2o.TRadiobutton", variable=var1, value="radH2O", command=h2o_selected).grid(column=2,row=1,pady = 20)
+        rad_o2 = ttk.Radiobutton(self, text="O2", style="o2.TRadiobutton", variable=var1, value="radO2", command=o2_selected).grid(column=3,row=1,pady = 20)
+        rad_both = ttk.Radiobutton(self, text="Both", style="both.TRadiobutton", variable=var1, value="radBoth", command=both_selected).grid(column=4,row=1,pady = 20)
+        
+        self.gambar = Image.open('qam_logo_transparent(2).png')
+        self.imgSplash = ImageTk.PhotoImage(self.gambar)
+        self.img = Label(self, image=self.imgSplash, bg="grey25")
+        self.img.image = self.imgSplash
+        self.img.grid(row=1,column=1,rowspan = 4, sticky=N)
+        
+        photo = PhotoImage(file = 'chart-line-solid.png')
+        photoimage = photo.subsample(3,3)
+        
+        button1 = tk.Button(self, text="Modify Report",bg=QAM_GREEN,fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 17, height = 2, command=lambda: controller.show_frame(PageTwo))
+        button1.grid(row=5,column=1, columnspan=1, padx = paddx, pady = paddy)
+        
+        button1 = tk.Button(self, text="Set Fields",bg="Orange",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 17, height = 2, command=lambda: controller.show_frame(FieldsScreen))
+        button1.grid(row=5,column=2, columnspan=4, padx = paddx, pady = paddy)
+        
+        #Start Recording Button => starts the record() function and shows test screen                                                ###work in progress###
+        #button2 = tk.Button(self, text="Start Test",bg="grey15",fg="grey75",font=LARGE_FONT, command=self.start_show_test)
+        #button2.grid(row=2,column=4)
+        
+        
+        
+        
+        #This one just goes to test screen... see above work in progress
+        button1 = tk.Button(self, text="Begin Test",bg="Red",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 37, height = 2, command=lambda: controller.show_frame(PageOne))
+        button1.grid(row=6,column=1, columnspan=4, padx = paddx, pady = paddy)
+        
+        #current o2
+        label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
+        label13.grid(row=2,column=3, columnspan=1, padx=paddx,pady=paddy)
+        label13.config(bg="grey25",fg="white")
+        
+        global currento2
+        currento2 = StringVar(value=0)
+        label14 = tk.Label(self,textvariable=currento2, width=10,bg="grey35",fg="#00CD66", font=('calibri',20,'bold'))
+        label14.grid(row=3, column=3,columnspan=1, padx=paddx,pady=paddy)
+        
+        #current h2o
+        label13 = tk.Label(self, text="Current H2O:", font=LARGE_FONT)
+        label13.grid(row=2,column=2,columnspan=1, padx=paddx,pady=paddy)
+        label13.config(bg="grey25",fg="white")
+        
+        global currenth2o
+        currenth2o = StringVar(value=0)
+        label14 = tk.Label(self,textvariable=currenth2o, width=10,bg="grey35",fg="#00BFFF", font=('calibri',20,'bold'))
+        label14.grid(row=3, column=2,columnspan=1, padx=paddx,pady=paddy)
+        
+
+        
+class FieldsScreen(tk.Frame):
+
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         label1 = tk.Label(self, text="Field Screen", font=LARGEST_FONT)
@@ -454,20 +603,35 @@ class StartPage(tk.Frame):
         self.img.image = self.imgSplash
         self.img.grid(row=16,column=4,rowspan = 4, sticky=S)
         
-        button1 = tk.Button(self, text="Testing Screen",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: controller.show_frame(PageOne))
+        def update_fields():
+                global header_list
+                header_list =[]
+                header_list.append(title.get())
+                header_list.append(client.get())
+                header_list.append(test_gas.get())
+                header_list.append(source_gas.get())
+                header_list.append(technician.get())
+                header_list.append(system_flow.get())
+                header_list.append(comments.get())
+                header_list.append(deltaf_serial.get())
+                header_list.append(deltaf_cal.get())
+                header_list.append(deltaf_flow.get())
+                header_list.append(deltaf_spec.get())
+                header_list.append(tracer_serial.get())
+                header_list.append(tracer_cal.get())
+                header_list.append(tracer_flow.get())
+                header_list.append(tracer_spec.get())
+                with open('/home/pi/Desktop/JoelPi/Header_default.csv', 'w+',newline='') as d:
+                    writer4 = csv.writer(d)
+                    for row in header_list:
+                        writer4.writerow([row])
+                    d.close()
+        
+        button1 = tk.Button(self, text="Back",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: controller.show_frame(StartPage))
         button1.grid(row=3,column=4)
         
-        #Start Recording Button => starts the record() function                 try to make one button that will show the testing screen and start a test
-        #button2 = ttk.Button(self, text="Start Recording", command=self.record)
-        #button2.grid(row=2,column=4)
-        
-        
-        #exit button
-        #button4 = ttk.Button(self, text="Exit", command=quit)
-        #button4.grid(row=5,column=3)
-        
-        #global header_list
-        #header_list = ['test title','client','test gas','source gas','tect','sys flow','comments','D serial','D cal date','D flow','D spec','M serial','M cal date','M flow','M spec']
+        button1 = tk.Button(self, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
+        button1.grid(row=4,column=4)
         
         with open('Header_default.csv', newline='') as t:
                 headreader = csv.reader(t)
@@ -657,60 +821,53 @@ class StartPage(tk.Frame):
         tracer_spec = self.tracer_spec
         
         #current o2
-        label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
+        label13 = tk.Label(self, text="Current H2O:", font=LARGE_FONT)
         label13.grid(row=13,column=2, padx=paddx,pady=paddy)
         label13.config(bg="grey25",fg="white")
         
-        global currento2
-        currento2 = StringVar(value=0)
         label14 = tk.Label(self,textvariable=currento2, width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=14, column=2, padx=paddx,pady=paddy)
+        label14.grid(row=14, column=3, padx=paddx,pady=paddy)
         
         #current h2o
-        label13 = tk.Label(self, text="Current H2O:", font=LARGE_FONT)
+        label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
         label13.grid(row=13,column=3, padx=paddx,pady=paddy)
         label13.config(bg="grey25",fg="white")
         
-        global currenth2o
-        currenth2o = StringVar(value=0)
         label14 = tk.Label(self,textvariable=currenth2o, width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=14, column=3, padx=paddx,pady=paddy)
+        label14.grid(row=14, column=2, padx=paddx,pady=paddy)
+        
+        #self.upper_band = DoubleVar(self)
+        #self.textbox = ttk.Entry(self,width=20, textvariable = self.upper_band)
+        #self.textbox.grid(row=3,column=5, padx=paddx,pady=paddy)
         
         
-        
-        self.upper_band = DoubleVar(self)
-        self.textbox = ttk.Entry(self,width=20, textvariable = self.upper_band)
-        self.textbox.grid(row=3,column=5, padx=paddx,pady=paddy)
-        
-        
-        self.lower_band = DoubleVar(self)
-        self.textbox = ttk.Entry(self,width=20, textvariable = self.lower_band)
-        self.textbox.grid(row=3,column=6, padx=paddx,pady=paddy)
+        #self.lower_band = DoubleVar(self)
+        #self.textbox = ttk.Entry(self,width=20, textvariable = self.lower_band)
+        #self.textbox.grid(row=3,column=6, padx=paddx,pady=paddy)
 
-        button1 = tk.Button(self, text="Set Bands",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_upperandlower(self.upper_band.get(),self.lower_band.get()))
-        button1.grid(row=4,column=5,columnspan=2)
+        #button1 = tk.Button(self, text="Set Bands",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_upperandlower(self.upper_band.get(),self.lower_band.get()))
+        #button1.grid(row=4,column=5,columnspan=2)
         
-        label14 = tk.Label(self,text="Upper Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=2, column=5, padx=paddx,pady=paddy)
+        #label14 = tk.Label(self,text="Upper Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
+        #label14.grid(row=2, column=5, padx=paddx,pady=paddy)
         
-        label14 = tk.Label(self,text="Lower Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=2, column=6, padx=paddx,pady=paddy)
+        #label14 = tk.Label(self,text="Lower Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
+        #label14.grid(row=2, column=6, padx=paddx,pady=paddy)
         
-        button1 = tk.Button(self, text="Service Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(0))
-        button1.grid(row=5,column=5)
+        #button1 = tk.Button(self, text="Service Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(0))
+        #button1.grid(row=5,column=5)
         
-        button1 = tk.Button(self, text="Inert Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(1))
-        button1.grid(row=5,column=6)
+        #button1 = tk.Button(self, text="Inert Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(1))
+        #button1.grid(row=5,column=6)
+        
+    
         
         
-
-        
-
 class PageOne(tk.Frame):
     
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        label = tk.Label(self, text="Graphing Page", font=LARGEST_FONT)
+        label = tk.Label(self, text="Testing Screen", font=LARGEST_FONT)
         label.config(bg="grey25", fg="#7fa6a3")
         label.grid(row=1,column=1,columnspan=2)
         
@@ -762,11 +919,11 @@ class PageOne(tk.Frame):
         self.label15 = tk.Label(self, text="IDLE", bg="IndianRed",fg="grey85",width=20,height=2, font=('Century Gothic',10,'bold'))
         self.label15.grid(row=2,column=3, pady=3, padx=2)
         
-        self.gambar = Image.open('qam_logo_transparent(2).png')
-        self.imgSplash = ImageTk.PhotoImage(self.gambar)
-        self.img = Label(self, image=self.imgSplash, bg="grey25")
-        self.img.image = self.imgSplash
-        self.img.grid(row=9,column=5, rowspan=3 , sticky=S)
+        #self.gambar = Image.open('qam_logo_transparent(2).png')
+        #self.imgSplash = ImageTk.PhotoImage(self.gambar)
+        #self.img = Label(self, image=self.imgSplash, bg="grey25")
+        #self.img.image = self.imgSplash
+        #self.img.grid(row=9,column=5, rowspan=3 , sticky=S)
         
         #current o2
         label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
@@ -806,23 +963,40 @@ class PageOne(tk.Frame):
         recording=True
         self.headerFileTitle = str(client.get()) + "_" + str(title.get()) + "_Header_" + start_timee
         path = directory + '/' + str(client.get()) + "_" + str(title.get()) + start_timee +"{}"
-        global header_list
-        header_list =[]
-        header_list.append(title.get())
-        header_list.append(client.get())
-        header_list.append(test_gas.get())
-        header_list.append(source_gas.get())
-        header_list.append(technician.get())
-        header_list.append(system_flow.get())
-        header_list.append(comments.get())
-        header_list.append(deltaf_serial.get())
-        header_list.append(deltaf_cal.get())
-        header_list.append(deltaf_flow.get())
-        header_list.append(deltaf_spec.get())
-        header_list.append(tracer_serial.get())
-        header_list.append(tracer_cal.get())
-        header_list.append(tracer_flow.get())
-        header_list.append(tracer_spec.get())
+        #global header_list
+        #header_list =[]
+        #header_list.append(title.get())
+        #header_list.append(client.get())
+        #header_list.append(test_gas.get())
+        #header_list.append(source_gas.get())
+        #header_list.append(technician.get())
+        #header_list.append(system_flow.get())
+        #header_list.append(comments.get())
+        #header_list.append(deltaf_serial.get())
+        #header_list.append(deltaf_cal.get())
+        #header_list.append(deltaf_flow.get())
+        #header_list.append(deltaf_spec.get())
+        #header_list.append(tracer_serial.get())
+        #header_list.append(tracer_cal.get())
+        #header_list.append(tracer_flow.get())
+        #header_list.append(tracer_spec.get())
+        
+        global o2dataList
+        global h2odataList
+        global o2_dataList
+        global h2o_dataList
+        global x2
+        global y2
+        global x1
+        global y1
+        o2dataList = ''
+        h2odataList = ''
+        o2_dataList = ''
+        h2o_dataList = ''
+        x2 = 0
+        y2 = 0
+        x1 = 0
+        y1 = 0
         
         i=0
         while os.path.exists(path.format(str(i))):
@@ -833,21 +1007,21 @@ class PageOne(tk.Frame):
                 pathF=str(path.format(str(i)))
         with open(os.path.join(path.format(str(i)),self.headerFileTitle)+'.csv', 'w+', newline='') as c:
             writer3 = csv.writer(c)
-            writer3.writerow([title.get()])
-            writer3.writerow([client.get()])
-            writer3.writerow([test_gas.get()])
-            writer3.writerow([source_gas.get()])
-            writer3.writerow([technician.get()])
-            writer3.writerow([system_flow.get()])
-            writer3.writerow([comments.get()])
-            writer3.writerow([deltaf_serial.get()])
-            writer3.writerow([deltaf_cal.get()])
-            writer3.writerow([deltaf_flow.get()])
-            writer3.writerow([deltaf_spec.get()])
-            writer3.writerow([tracer_serial.get()])
-            writer3.writerow([tracer_cal.get()])
-            writer3.writerow([tracer_flow.get()])
-            writer3.writerow([tracer_spec.get()])
+            writer3.writerow([title])
+            writer3.writerow([client])
+            writer3.writerow([test_gas])
+            writer3.writerow([source_gas])
+            writer3.writerow([technician])
+            writer3.writerow([system_flow])
+            writer3.writerow([comments])
+            writer3.writerow([deltaf_serial])
+            writer3.writerow([deltaf_cal])
+            writer3.writerow([deltaf_flow])
+            writer3.writerow([deltaf_spec])
+            writer3.writerow([tracer_serial])
+            writer3.writerow([tracer_cal])
+            writer3.writerow([tracer_flow])
+            writer3.writerow([tracer_spec])
             writer3.writerow([start_timee])
             c.flush()
             
@@ -896,16 +1070,35 @@ class PageOne(tk.Frame):
             
             
     def animateo2(self):
-        while True:
-                try:
-                        o2 = get_O2()
-                        o2 = round(float(o2),2)
-                        break
-                except:
-                        time.sleep(1)
+        global o2IsWorking
+        if o2IsWorking == False:
+                for x in range(2):
+                        try:
+                                o2 = get_O2()
+                                o2 = round(float(o2),2)
+                                o2IsWorking = True
+                                break
+                        except:
+                                time.sleep(0.08)
+                                o2 = 0
+                                o2IsWorking = False
+        if o2IsWorking == True:
+                for x in range(5):
+                        try:
+                                o2 = get_O2()
+                                o2 = round(float(o2),2)
+                                o2IsWorking = True
+                                break
+                        except:
+                                time.sleep(0.08)
+                                o2 = 0
+                                o2IsWorking = False
                 
         currento2.set(o2)
-        
+        #if o2IsWorking==True:
+        #        print('o2 is working')
+        #if o2IsWorking==False:
+        #        print('o2 is fucked')
         try:
                 if o2data_max<o2:
                         o2data_max = o2
@@ -920,12 +1113,14 @@ class PageOne(tk.Frame):
                         o2data_min = o2
         o2time = datetime.now()-start_time
         global o2_dataList
+        global o2dataList
         o2_dataList = o2_dataList + '\n' + str(round((o2time.total_seconds())/60,2))+ ',' + str(o2)
         o2dataList = o2_dataList.split('\n')
         o2dataList.pop(0)
-        #print(o2dataList)
         o2xList = []
         o2yList = []
+        global x1
+        global y1
         for eachLine in o2dataList:
             if len(str(eachLine)) > 1:
                 x1, y1 = eachLine.split(',')
@@ -936,11 +1131,14 @@ class PageOne(tk.Frame):
         
         a1.set_ylim(min((0, o2data_min+o2data_min*0.1)), max((10, o2data_max+o2data_max*0.1)))
         a1.plot(o2xList,o2yList)
-        a1.set_title("Oxygen (ppb) vs Time (minutes)")
+        if o2IsWorking == True:
+                a1.set_title("Oxygen (ppb) vs Time (minutes)")
+        else:
+                a1.set_title("Check DeltaF Connections")
         a1.set_xlabel('Time (minutes)')
         a1.set_ylabel('Oxygen (ppb)')
         
-        o2fileTitle = str(client.get()) + "_" + str(title.get()) + "_O2_" + start_timee
+        o2fileTitle = "O2"
         
         if recording == True:
             global o2Valuelist
@@ -956,19 +1154,39 @@ class PageOne(tk.Frame):
                 o.flush()
 
     def animateh2o(j):
-        while True:
-                try:
-                        h2o = raw_to_ppb(get_h20())
-                        h2o = round(float(h2o),2)
-                        break
-                except:
-                        time.sleep(1)
+        global h2oIsWorking
+        if h2oIsWorking == False:
+                for x in range(2):
+                        try:
+                                h2o = raw_to_ppb(get_h20())
+                                h2o = round(float(h2o),2)
+                                h2oIsWorking=True
+                                break
+                        except:
+                                time.sleep(0.08)
+                                h2oIsWorking = False
+                                h2o=0
+        if h2oIsWorking == True:
+                for x in range(5):
+                        try:
+                                h2o = raw_to_ppb(get_h20())
+                                h2o = round(float(h2o),2)
+                                h2oIsWorking = True
+                                break
+                        except:
+                                time.sleep(0.08)
+                                h2oIsWorking = False
+                                h2o=0
+                        
                 
         
         if h2o<0:
                 h2o=0
         currenth2o.set(h2o)
-                
+        #if h2oIsWorking==True:
+        #        print('h2o is working')
+        #if h2oIsWorking==False:
+        #        print('h2o is fucked')        
                 
         try:
                 if h2odata_max<h2o:
@@ -984,11 +1202,14 @@ class PageOne(tk.Frame):
                         h2odata_min = h2o
         h2otime = datetime.now()-start_time
         global h2o_dataList
+        global h2odataList
         h2o_dataList = h2o_dataList + '\n' + str(round((h2otime.total_seconds())/60,2))+ ',' + str(h2o)
         h2odataList = h2o_dataList.split('\n')
         h2odataList.pop(0)
         h2oxList = []
         h2oyList = []
+        global x2
+        global y2
         for eachLine in h2odataList:
             if len(str(eachLine)) > 1:
                 x2, y2 = eachLine.split(',')
@@ -998,11 +1219,14 @@ class PageOne(tk.Frame):
         a2.ticklabel_format(useOffset=False)
         a2.set_ylim(min((0, h2odata_min+h2odata_min*0.1)), max((10, h2odata_max+h2odata_max*0.1)))
         a2.plot(h2oxList, h2oyList)
-        a2.set_title("Moisture (ppb) vs Time (minutes)")
+        if h2oIsWorking == True:
+                a2.set_title("Moisture (ppb) vs Time (minutes)")
+        else:
+                a2.set_title("Check Meeco Connection")
         a2.set_xlabel('Time (minutes)')
         a2.set_ylabel('Moisture (ppb)')
         
-        h2ofileTitle = str(client.get()) + "_" + str(title.get()) + "_H2O_" + start_timee
+        h2ofileTitle = "H2O"
         
         
         if recording == True:
@@ -1423,7 +1647,6 @@ class PageTwo(tk.Frame):
         
         
         
-
 
 
         

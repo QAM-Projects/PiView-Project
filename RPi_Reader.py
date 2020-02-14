@@ -26,7 +26,7 @@ from datetime import datetime
 import PIL
 from PIL import ImageTk
 from PIL import Image
-import os
+import os, sys
 
 
 QAM_GREEN = "#7fa6a3"
@@ -104,6 +104,61 @@ def write_upperandlower(valueToUpper,valueToLower):
     time.sleep(0.08)
     write_serial_float(bytearray([178]),bytearray([16]),valueToLower)
 
+def read_serial_float(operand):
+    operand = bytearray([operand])
+    
+    data = bytearray()
+    echo = bytearray()
+    command=bytearray([146])
+    #operand =bytearray([16])
+    
+    sleepy = 0.02
+    
+    ser = serial.Serial(
+    port='/dev/ttyUSB1',\
+    baudrate=9600,\
+    parity=serial.PARITY_NONE,\
+    stopbits=serial.STOPBITS_ONE,\
+    bytesize=serial.EIGHTBITS,\
+    timeout = 0)
+    
+    data = bytearray()
+    ser.write(command) #send command byte
+    time.sleep(sleepy)
+    echo = ser.read(1) #recieve command byte
+    data = data + echo
+    
+    
+    ser.write(operand)
+    time.sleep(sleepy)
+    echo = ser.read(2)
+    data = data + echo
+    
+    ser.write(bytearray([echo[-1]]))
+    time.sleep(sleepy)
+    echo = ser.read(1)
+    data = data + echo
+    
+    ser.write(bytearray([echo[-1]]))
+    time.sleep(sleepy)
+    echo = ser.read(1)
+    data = data + echo
+    
+    ser.write(bytearray([echo[-1]]))
+    time.sleep(sleepy)
+    echo = ser.read(1)
+    data = data + echo
+    
+    
+    ser.write(bytearray([echo[-1]]))
+    time.sleep(sleepy)
+    echo = ser.read(1)
+    data = data + echo
+    #print(data)
+    return(data)
+
+    ser.close()
+
 def write_serial_float(command,operand,valueToWrite):
     databytes = IEEE754(valueToWrite)
     
@@ -117,7 +172,7 @@ def write_serial_float(command,operand,valueToWrite):
     databyte4 = databytes[3]
     databyte5 = databytes[4]
     
-    sleepy = 0.05
+    sleepy = 0.02
     
     ser = serial.Serial(
     port='/dev/ttyUSB1',\
@@ -125,43 +180,51 @@ def write_serial_float(command,operand,valueToWrite):
     parity=serial.PARITY_NONE,\
     stopbits=serial.STOPBITS_ONE,\
     bytesize=serial.EIGHTBITS,\
-    timeout = 0.1)
+    timeout = 0)
     
     data = bytearray()
     ser.write(command) #send command byte
-    echo = ser.read(10) #recieve command byte
+    time.sleep(sleepy)
+    echo = ser.read(1) #recieve command byte
     data = data + echo
     
     
     ser.write(operand)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(2)
     data = data + echo
     
     ser.write(databyte1)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     ser.write(databyte2)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     ser.write(databyte3)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     
     ser.write(databyte4)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     ser.write(databyte5)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     return(data)
 
     ser.close()
+    
 
-def write_serial_int(n):
+def write_serial_int(send,n):
     databyte0 = "00000000"
     databyte1 = "00000001"
     databyte2 = "00000010"
@@ -177,13 +240,15 @@ def write_serial_int(n):
         byte1 = bytearray([int(databyte0,2)])
         byte2 = bytearray([int(databyte0,2)])
         byte3 = bytearray([int(databyte2,2)])
-    
-    command=bytearray([162])
+    if send==True:
+        command=bytearray([162])
+    else:
+        command=bytearray([130])
     operand =bytearray([4])
     data = bytearray()
     echo = bytearray()
     
-    sleepy = 0.05
+    sleepy = 0.02
     
     ser = serial.Serial(
     port='/dev/ttyUSB1',\
@@ -191,32 +256,41 @@ def write_serial_int(n):
     parity=serial.PARITY_NONE,\
     stopbits=serial.STOPBITS_ONE,\
     bytesize=serial.EIGHTBITS,\
-    timeout = 0.1)
+    timeout = 0)
     
     ser.write(command) #send command byte
-    echo = ser.read(10) #recieve command byte
+    time.sleep(sleepy)
+    echo = ser.read(1) #recieve command byte
     data = data + echo
     
     
     ser.write(operand)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(2)
     data = data + echo
     
     ser.write(byte1)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     ser.write(byte2)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
     
     ser.write(byte3)
-    echo = ser.read(10)
+    time.sleep(sleepy)
+    echo = ser.read(1)
     data = data + echo
-    print(data)
+    return(int(data[4]))
 
 
     ser.close()
+    if int(data[4]) == 1:
+                currentMode.set('Inert')
+    if int(data[4]) == 0:
+                currentMode.set('Service')
 
 # gets O2 data and converts to ppb
 def get_O2():
@@ -415,7 +489,7 @@ class RPiReader(tk.Tk):
         #tk.Tk.iconbitmap(self,default="qam_logo_icon.ico")
         tk.Tk.wm_title(self, "Pi-View")
         
-        time.sleep(5)
+        time.sleep(0.5)
         splash.destroy()
         self.deiconify()
         container = tk.Frame(self)
@@ -565,9 +639,9 @@ class StartPage(tk.Frame):
         
         #This one just goes to test screen... see above work in progress
         button1 = tk.Button(self, text="Begin Test",bg="Red",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 37, height = 2, command=lambda: controller.show_frame(PageOne))
-        button1.grid(row=6,column=1, columnspan=4, padx = paddx, pady = paddy)
+        button1.grid(row=7,column=1, columnspan=4, padx = paddx, pady = paddy)
         
-        #current o2
+        #Show Current O2 Reading
         label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
         label13.grid(row=2,column=3, columnspan=1, padx=paddx,pady=paddy)
         label13.config(bg="grey25",fg="white")
@@ -577,7 +651,7 @@ class StartPage(tk.Frame):
         label14 = tk.Label(self,textvariable=currento2, width=10,bg="grey35",fg="#00CD66", font=('calibri',20,'bold'))
         label14.grid(row=3, column=3,columnspan=1, padx=paddx,pady=paddy)
         
-        #current h2o
+        #Show Current H2O Reading
         label13 = tk.Label(self, text="Current H2O:", font=LARGE_FONT)
         label13.grid(row=2,column=2,columnspan=1, padx=paddx,pady=paddy)
         label13.config(bg="grey25",fg="white")
@@ -586,6 +660,70 @@ class StartPage(tk.Frame):
         currenth2o = StringVar(value=0)
         label14 = tk.Label(self,textvariable=currenth2o, width=10,bg="grey35",fg="#00BFFF", font=('calibri',20,'bold'))
         label14.grid(row=3, column=2,columnspan=1, padx=paddx,pady=paddy)
+        
+        button1 = tk.Button(self, text="Equipment Controls",bg="#2FA4FF",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 37, height = 2, command=equipment_controls)
+        button1.grid(row=6,column=1, columnspan=4, padx = paddx, pady = paddy)
+        
+def equipment_controls():
+        paddx = 15
+        paddy = 15
+        top5 = Toplevel()
+        top5.title("Equipment Controls")
+        
+        button1 = tk.Button(top5, text="Back",bg="Orange",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 17, height = 2, command=top5.destroy)
+        button1.grid(row=1,column=1, columnspan=4, padx = paddx, pady = paddy)
+        
+        label1 = tk.Label(top5, text="Meeco Tracer 2", font=LARGEST_FONT)
+        label1.grid(row=2,column=2)
+        
+        #Show Current Meeco Mode
+        label1 = tk.Label(top5, text="Current Mode:", font=LARGE_FONT)
+        label1.grid(row=3,column=1)
+        
+        global currentMode
+        label14 = tk.Label(top5,textvariable=currentMode, width=10,bg="grey35",fg="red", font=('calibri',20,'bold'))
+        label14.grid(row=3, column=2,columnspan=1, padx=paddx,pady=paddy)
+        
+        button1 = tk.Button(top5, text="Service Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(True,0))
+        button1.grid(row=4,column=1)
+        
+        button1 = tk.Button(top5, text="Inert Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(True,1))
+        button1.grid(row=4,column=2)
+        
+        label14 = tk.Label(top5,text="Upper Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
+        label14.grid(row=5, column=1, padx=paddx,pady=paddy)
+        
+        label14 = tk.Label(top5,text="Lower Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
+        label14.grid(row=5, column=3, padx=paddx,pady=paddy)
+        
+        global currentUpper
+        label14 = tk.Label(top5,textvariable=currentUpper, width=10,bg="grey35",fg="red", font=('calibri',20,'bold'))
+        label14.grid(row=5, column=2,columnspan=1, padx=paddx,pady=paddy)
+        
+        global currentLower
+        label14 = tk.Label(top5,textvariable=currentLower, width=10,bg="grey35",fg="red", font=('calibri',20,'bold'))
+        label14.grid(row=5, column=4,columnspan=1, padx=paddx,pady=paddy)
+        
+        label14 = tk.Label(top5,text="Set Upper Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
+        label14.grid(row=6, column=1, padx=paddx,pady=paddy)
+        
+        label14 = tk.Label(top5,text="Set Lower Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
+        label14.grid(row=6, column=3, padx=paddx,pady=paddy)
+        
+        upper_band = DoubleVar()
+        textbox = ttk.Entry(top5,width=20, textvariable = upper_band)
+        textbox.grid(row=6,column=2, padx=paddx,pady=paddy)
+        
+        lower_band = DoubleVar()
+        textbox = ttk.Entry(top5,width=20, textvariable = lower_band)
+        textbox.grid(row=6,column=4, padx=paddx,pady=paddy)
+        
+        
+        
+        
+        
+        button1 = tk.Button(top5, text="Set Bands",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_upperandlower(upper_band.get(),lower_band.get()))
+        button1.grid(row=7,column=1,columnspan=2)
         
 
         
@@ -838,29 +976,7 @@ class FieldsScreen(tk.Frame):
         label14 = tk.Label(self,textvariable=currenth2o, width=20,bg="grey35",fg="white", font=SMALL_FONT)
         label14.grid(row=14, column=2, padx=paddx,pady=paddy)
         
-        #self.upper_band = DoubleVar(self)
-        #self.textbox = ttk.Entry(self,width=20, textvariable = self.upper_band)
-        #self.textbox.grid(row=3,column=5, padx=paddx,pady=paddy)
         
-        
-        #self.lower_band = DoubleVar(self)
-        #self.textbox = ttk.Entry(self,width=20, textvariable = self.lower_band)
-        #self.textbox.grid(row=3,column=6, padx=paddx,pady=paddy)
-
-        #button1 = tk.Button(self, text="Set Bands",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_upperandlower(self.upper_band.get(),self.lower_band.get()))
-        #button1.grid(row=4,column=5,columnspan=2)
-        
-        #label14 = tk.Label(self,text="Upper Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        #label14.grid(row=2, column=5, padx=paddx,pady=paddy)
-        
-        #label14 = tk.Label(self,text="Lower Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        #label14.grid(row=2, column=6, padx=paddx,pady=paddy)
-        
-        #button1 = tk.Button(self, text="Service Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(0))
-        #button1.grid(row=5,column=5)
-        
-        #button1 = tk.Button(self, text="Inert Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(1))
-        #button1.grid(row=5,column=6)
         
     
         
@@ -897,7 +1013,7 @@ class PageOne(tk.Frame):
         
         #toolbar = NavigationToolbar2Tk(canvas1,self)
         #toolbar.update()
-        #canvas1._tkcanvas.grid(row=3,column=1)
+        #canvas1._tkcanvas.grid(row=8,column=1)
         
         #toolbar = NavigationToolbar2Tk(canvas2,self)
         #toolbar.update()
@@ -968,30 +1084,22 @@ class PageOne(tk.Frame):
         
 ### Start Recording function: writes o2, h20, and time variables to csv files        
     def record(self):
+        
         #PageOne.idle_on_off(self)
+        
         global recording
         red_green = 'green'
         on_off = "Recording"
         recording=True
-        self.headerFileTitle = "Header"
-        path = directory + '/' + str(client.get()) + "_" + str(title.get()) + start_timee +"{}"
-        #global header_list
-        #header_list =[]
-        #header_list.append(title.get())
-        #header_list.append(client.get())
-        #header_list.append(test_gas.get())
-        #header_list.append(source_gas.get())
-        #header_list.append(technician.get())
-        #header_list.append(system_flow.get())
-        #header_list.append(comments.get())
-        #header_list.append(deltaf_serial.get())
-        #header_list.append(deltaf_cal.get())
-        #header_list.append(deltaf_flow.get())
-        #header_list.append(deltaf_spec.get())
-        #header_list.append(tracer_serial.get())
-        #header_list.append(tracer_cal.get())
-        #header_list.append(tracer_flow.get())
-        #header_list.append(tracer_spec.get())
+        
+        global start_time
+        start_time=datetime.now()
+        print(start_time)
+        global start_timee
+        start_timee = start_time.strftime("%m_%d_%y_%I:%M:%S")
+        start_timet.set(start_time.strftime("%I:%M %p"))
+        
+        
         
         global o2dataList
         global h2odataList
@@ -1010,6 +1118,10 @@ class PageOne(tk.Frame):
         x1 = 0
         y1 = 0
         
+        
+        
+        self.headerFileTitle = "Header"
+        path = directory + '/' + str(client.get()) + "_" + str(title.get()) + start_timee +"{}"
         i=0
         while os.path.exists(path.format(str(i))):
                 i=int(i)+1
@@ -1102,7 +1214,22 @@ class PageOne(tk.Frame):
                 top4.img.image = self.imgSplash
                 top4.img.grid(row=16,column=4,rowspan = 4, sticky=S)
                 
+                
+                
                 def update_fields():
+                        path = directory + '/' + str(client.get()) + "_" + str(title.get()) + start_timee +"{}"
+                        i=0
+                        while os.path.exists(path.format(str(i))):
+                                i=int(i)+1
+                        else:
+                                os.mkdir(path.format(str(i)))
+                                global pathG
+                                pathG=str(path.format(str(i)))
+                        
+                        os.chdir("/home/pi/Desktop/JoelPi")
+                        os.rename(pathF,pathG)
+                        
+                        
                         global header_list
                         header_list =[]
                         header_list.append(title.get())
@@ -1125,6 +1252,33 @@ class PageOne(tk.Frame):
                             for row in header_list:
                                 writer4.writerow([row])
                             d.close()
+                        with open(os.path.join(pathG,self.headerFileTitle)+'.csv', 'w+', newline='') as c:
+                            writer3 = csv.writer(c)
+                            writer3.writerow([title.get()])
+                            writer3.writerow([client.get()])
+                            writer3.writerow([test_gas.get()])
+                            writer3.writerow([source_gas.get()])
+                            writer3.writerow([technician.get()])
+                            writer3.writerow([system_flow.get()])
+                            writer3.writerow([comments.get()])
+                            writer3.writerow([deltaf_serial.get()])
+                            writer3.writerow([deltaf_cal.get()])
+                            writer3.writerow([deltaf_flow.get()])
+                            writer3.writerow([deltaf_spec.get()])
+                            writer3.writerow([tracer_serial.get()])
+                            writer3.writerow([tracer_cal.get()])
+                            writer3.writerow([tracer_flow.get()])
+                            writer3.writerow([tracer_spec.get()])
+                            writer3.writerow([start_timee])
+                            writer3.writerow([stop_time])
+                            writer3.writerow([o2MeanValue])
+                            writer3.writerow([o2MaxValue])
+                            writer3.writerow([o2FinalValue])
+                            writer3.writerow([h2oMeanValue])
+                            writer3.writerow([h2oMaxValue])
+                            writer3.writerow([h2oFinalValue])
+                            c.flush()
+                            c.close()
                 
                 button1 = tk.Button(top4, text="Back",bg="grey15",fg="grey75",font=LARGE_FONT, command=top4.destroy)
                 button1.grid(row=3,column=4)
@@ -1371,6 +1525,21 @@ class PageOne(tk.Frame):
             
     def animateo2(self):   #### animation function. despite the name it actually animates both o2 and h2o. 
                                 #  it also functions to save csv files if the variable 'recording' is set to TRUE
+        global currentMode
+        currentMode=StringVar()
+        meecoMode = int(write_serial_int(False,0))
+        if meecoMode == 1:
+                currentMode.set('Inert')
+        if meecoMode == 0:
+                currentMode.set('Service')
+        
+        global currentUpper
+        global currentLower
+        currentUpper=StringVar()
+        currentLower=StringVar()
+        currentUpper.set(round(float(raw_to_ppb(read_serial_float(15))),2))
+        currentLower.set(round(float(raw_to_ppb(read_serial_float(16))),2))
+        
         
         
         #### data gathering for o2 graph
@@ -1399,10 +1568,10 @@ class PageOne(tk.Frame):
                                 o2IsWorking = False
                 
         currento2.set(o2)
-        if o2IsWorking==True:
-                print('o2 is working')
-        if o2IsWorking==False:
-                print('o2 is fucked')
+        #if o2IsWorking==True:
+        #        print('o2 is working')
+        #if o2IsWorking==False:
+        #        print('o2 is fucked')
         try:
                 if o2data_max<o2:
                         o2data_max = o2
@@ -1434,7 +1603,7 @@ class PageOne(tk.Frame):
                 x1, y1 = eachLine.split(',')
                 o2xList.append(float(x1))
                 o2yList.append(float(y1))
-        o2xList[0] = 0
+        #o2xList[0] = 0
         
         #### data gathering for h2o graph
         global h2oIsWorking
@@ -1464,11 +1633,10 @@ class PageOne(tk.Frame):
         if h2o<0:
                 h2o=0
         currenth2o.set(h2o)
-        if h2oIsWorking==True:
-                print('h2o is working')
-        if h2oIsWorking==False:
-        
-                print('h2o is fucked')        
+        #if h2oIsWorking==True:
+        #        print('h2o is working')
+        #if h2oIsWorking==False:
+        #        print('h2o is fucked')        
                 
         try:
                 if h2odata_max<h2o:
@@ -1977,6 +2145,6 @@ class PageTwo(tk.Frame):
 app = RPiReader()
 
 #ani2 = animation.FuncAnimation(f2, PageOne.animateh2o, interval=1000)
-ani1 = animation.FuncAnimation(f1, PageOne.animateo2, interval=1000)
+ani1 = animation.FuncAnimation(f1, PageOne.animateo2, interval=10000)
 
 app.mainloop()

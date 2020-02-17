@@ -492,7 +492,8 @@ class RPiReader(tk.Tk):
         time.sleep(0.5)
         splash.destroy()
         self.deiconify()
-        container = tk.Frame(self)
+        container = tk.Frame(self, bg='black')
+        self.geometry("1200x700+300+200")
         container.grid(row=0, column=0, sticky="nsew")
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
@@ -534,7 +535,7 @@ class StartPage(tk.Frame):
         
     
     def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
+        tk.Frame.__init__(self, parent, width=1200, height=700)
         #label1 = tk.Label(self, text="Main Screen", font=LARGEST_FONT)
         #label1.grid(row=1,column=2, columnspan=5, sticky=N)
         #label1.config(bg="grey25", fg=QAM_GREEN)
@@ -611,24 +612,24 @@ class StartPage(tk.Frame):
         s1.configure("both.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="Orange")
 
         # Radiobuttons
-        rad_h2o = ttk.Radiobutton(self, text="H2O", style="h2o.TRadiobutton", variable=var2, value="radH2O", command=h2o_selected).grid(column=2,row=1,pady = 20)
-        rad_o2 = ttk.Radiobutton(self, text="O2", style="o2.TRadiobutton", variable=var2, value="radO2", command=o2_selected).grid(column=3,row=1,pady = 20)
-        rad_both = ttk.Radiobutton(self, text="Both", style="both.TRadiobutton", variable=var2, value="radBoth", command=both_selected).grid(column=4,row=1,pady = 20)
+        rad_h2o = ttk.Radiobutton(self, text="H2O", style="h2o.TRadiobutton", variable=var2, value="radH2O", command=h2o_selected).place(x=500,y=20)
+        rad_o2 = ttk.Radiobutton(self, text="O2", style="o2.TRadiobutton", variable=var2, value="radO2", command=o2_selected).place(x=600,y=20)
+        rad_both = ttk.Radiobutton(self, text="Both", style="both.TRadiobutton", variable=var2, value="radBoth", command=both_selected).place(x=680,y=20)
         
         self.gambar = Image.open('qam_logo_transparent(2).png')
         self.imgSplash = ImageTk.PhotoImage(self.gambar)
         self.img = Label(self, image=self.imgSplash, bg="grey25")
         self.img.image = self.imgSplash
-        self.img.grid(row=1,column=1,rowspan = 4, sticky=N)
+        self.img.place(x=1,y=1)
         
         photo = PhotoImage(file = 'chart-line-solid.png')
         photoimage = photo.subsample(3,3)
         
         button1 = tk.Button(self, text="Modify Report",bg=QAM_GREEN,fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 17, height = 2, command=lambda: controller.show_frame(PageTwo))
-        button1.grid(row=5,column=1, columnspan=1, padx = paddx, pady = paddy)
+        button1.place(x=20,y=200)
         
         button1 = tk.Button(self, text="Set Fields",bg="Orange",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 17, height = 2, command=lambda: controller.show_frame(FieldsScreen))
-        button1.grid(row=5,column=2, columnspan=4, padx = paddx, pady = paddy)
+        button1.place(x=500,y=200)
         
         #Start Recording Button => starts the record() function and shows test screen                                                ###work in progress###
         #button2 = tk.Button(self, text="Start Test",bg="grey15",fg="grey75",font=LARGE_FONT, command=self.start_show_test)
@@ -639,91 +640,89 @@ class StartPage(tk.Frame):
         
         #This one just goes to test screen... see above work in progress
         button1 = tk.Button(self, text="Begin Test",bg="Red",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 37, height = 2, command=lambda: controller.show_frame(PageOne))
-        button1.grid(row=7,column=1, columnspan=4, padx = paddx, pady = paddy)
+        button1.place(x=20,y=500)
         
         #Show Current O2 Reading
-        label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
-        label13.grid(row=2,column=3, columnspan=1, padx=paddx,pady=paddy)
+        label13 = tk.Label(self, text="Current O2:", font=SMALL_FONT)
+        label13.place(x=500,y=70)
         label13.config(bg="grey25",fg="white")
         
         global currento2
         currento2 = StringVar(value=0)
         label14 = tk.Label(self,textvariable=currento2, width=10,bg="grey35",fg="#00CD66", font=('calibri',20,'bold'))
-        label14.grid(row=3, column=3,columnspan=1, padx=paddx,pady=paddy)
+        label14.place(x=680,y=70)
         
         #Show Current H2O Reading
-        label13 = tk.Label(self, text="Current H2O:", font=LARGE_FONT)
-        label13.grid(row=2,column=2,columnspan=1, padx=paddx,pady=paddy)
+        label13 = tk.Label(self, text="Current H2O:", font=SMALL_FONT)
+        label13.place(x=500,y=110)
         label13.config(bg="grey25",fg="white")
         
         global currenth2o
         currenth2o = StringVar(value=0)
         label14 = tk.Label(self,textvariable=currenth2o, width=10,bg="grey35",fg="#00BFFF", font=('calibri',20,'bold'))
-        label14.grid(row=3, column=2,columnspan=1, padx=paddx,pady=paddy)
+        label14.place(x=680,y=110)
         
         button1 = tk.Button(self, text="Equipment Controls",bg="#2FA4FF",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 37, height = 2, command=equipment_controls)
-        button1.grid(row=6,column=1, columnspan=4, padx = paddx, pady = paddy)
+        button1.place(x=20,y=350)
         
 def equipment_controls():
         paddx = 15
         paddy = 15
         top5 = Toplevel()
         top5.title("Equipment Controls")
+        top5.geometry("1000x500")
+        top5.configure(background="grey25")
         
-        button1 = tk.Button(top5, text="Back",bg="Orange",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 17, height = 2, command=top5.destroy)
-        button1.grid(row=1,column=1, columnspan=4, padx = paddx, pady = paddy)
+        button1 = tk.Button(top5, text="Back",bg="Orange",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 14, height = 1, command=top5.destroy)
+        button1.place(x=500, y=5)
         
-        label1 = tk.Label(top5, text="Meeco Tracer 2", font=LARGEST_FONT)
-        label1.grid(row=2,column=2)
+        label1 = tk.Label(top5, text="Meeco Tracer 2",bg="grey25", fg = QAM_GREEN, font=LARGEST_FONT)
+        label1.place(x=100, y=100)
         
         #Show Current Meeco Mode
-        label1 = tk.Label(top5, text="Current Mode:", font=LARGE_FONT)
-        label1.grid(row=3,column=1)
+        label1 = tk.Label(top5, text="Current Mode:",bg="grey25", fg = "grey85", font=LARGE_FONT)
+        label1.place(x=50, y=160)
         
         global currentMode
-        label14 = tk.Label(top5,textvariable=currentMode, width=10,bg="grey35",fg="red", font=('calibri',20,'bold'))
-        label14.grid(row=3, column=2,columnspan=1, padx=paddx,pady=paddy)
+        label14 = tk.Label(top5,textvariable=currentMode, width=10,bg="grey25",fg="red", font=('calibri',20,'bold'))
+        label14.place(x=320, y=170)
         
-        button1 = tk.Button(top5, text="Service Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(True,0))
-        button1.grid(row=4,column=1)
+        button1 = tk.Button(top5, text="Service",bg="grey15",fg="grey85",font=SMALL_FONT, command=lambda: write_serial_int(True,0))
+        button1.place(x=500,y=160)
         
-        button1 = tk.Button(top5, text="Inert Mode",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_serial_int(True,1))
-        button1.grid(row=4,column=2)
+        button1 = tk.Button(top5, text="Inert",bg="grey15",fg="grey85",font=SMALL_FONT, command=lambda: write_serial_int(True,1))
+        button1.place(x=650,y=160)
         
-        label14 = tk.Label(top5,text="Upper Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=5, column=1, padx=paddx,pady=paddy)
+        label14 = tk.Label(top5,text="Upper Band:",bg="grey25",fg="white", font=SMALL_FONT)
+        label14.place(x=50,y=250)
         
-        label14 = tk.Label(top5,text="Lower Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=5, column=3, padx=paddx,pady=paddy)
+        label14 = tk.Label(top5,text="Lower Band:",bg="grey25",fg="white", font=SMALL_FONT)
+        label14.place(x=400,y=250)
         
         global currentUpper
-        label14 = tk.Label(top5,textvariable=currentUpper, width=10,bg="grey35",fg="red", font=('calibri',20,'bold'))
-        label14.grid(row=5, column=2,columnspan=1, padx=paddx,pady=paddy)
+        label14 = tk.Label(top5,textvariable=currentUpper, width=10,bg="grey25",fg="grey85", font=('calibri',20,'bold'))
+        label14.place(x=220,y=255)
         
         global currentLower
-        label14 = tk.Label(top5,textvariable=currentLower, width=10,bg="grey35",fg="red", font=('calibri',20,'bold'))
-        label14.grid(row=5, column=4,columnspan=1, padx=paddx,pady=paddy)
+        label14 = tk.Label(top5,textvariable=currentLower, width=10,bg="grey25",fg="grey85", font=('calibri',20,'bold'))
+        label14.place(x=570,y=255)
         
-        label14 = tk.Label(top5,text="Set Upper Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=6, column=1, padx=paddx,pady=paddy)
+        label14 = tk.Label(top5,text="Set Upper Band:", width=20,bg="grey25",fg="white", font=SMALL_FONT)
+        label14.place(x=5,y=320)
         
-        label14 = tk.Label(top5,text="Set Lower Band:", width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=6, column=3, padx=paddx,pady=paddy)
+        label14 = tk.Label(top5,text="Set Lower Band:", width=20,bg="grey25",fg="white", font=SMALL_FONT)
+        label14.place(x=350,y=320)
         
         upper_band = DoubleVar()
-        textbox = ttk.Entry(top5,width=20, textvariable = upper_band)
-        textbox.grid(row=6,column=2, padx=paddx,pady=paddy)
+        textbox = ttk.Entry(top5,width=10, textvariable = upper_band)
+        textbox.place(x=270,y=330)
         
         lower_band = DoubleVar()
-        textbox = ttk.Entry(top5,width=20, textvariable = lower_band)
-        textbox.grid(row=6,column=4, padx=paddx,pady=paddy)
-        
-        
-        
-        
+        textbox = ttk.Entry(top5,width=10, textvariable = lower_band)
+        textbox.place(x=615,y=330)
         
         button1 = tk.Button(top5, text="Set Bands",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: write_upperandlower(upper_band.get(),lower_band.get()))
-        button1.grid(row=7,column=1,columnspan=2)
+        button1.place(x=130,y=400)
         
 
         
@@ -731,9 +730,9 @@ class FieldsScreen(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        label1 = tk.Label(self, text="Field Screen", font=LARGEST_FONT)
-        label1.grid(row=1,column=1, columnspan=3, sticky=N)
-        label1.config(bg="grey25", fg="#7fa6a3")
+        #label1 = tk.Label(self, text="Field Screen", font=LARGEST_FONT)
+        #label1.grid(row=1,column=1, columnspan=3, sticky=N)
+        #label1.config(bg="grey25", fg="#7fa6a3")
         
         self.configure(background="grey25")
         
@@ -741,7 +740,7 @@ class FieldsScreen(tk.Frame):
         self.imgSplash = ImageTk.PhotoImage(self.gambar)
         self.img = Label(self, image=self.imgSplash, bg="grey25")
         self.img.image = self.imgSplash
-        self.img.grid(row=16,column=4,rowspan = 4, sticky=S)
+        self.img.place(x=400, y=10)
         
         def update_fields():
                 global header_list
@@ -768,10 +767,10 @@ class FieldsScreen(tk.Frame):
                     d.close()
         
         button1 = tk.Button(self, text="Back",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: controller.show_frame(StartPage))
-        button1.grid(row=3,column=4)
+        button1.place(x=20,y=20)
         
-        button1 = tk.Button(self, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
-        button1.grid(row=4,column=4)
+        #button1 = tk.Button(self, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
+        #button1.grid(row=4,column=4)
         
         with open('Header_default.csv', newline='') as t:
                 headreader = csv.reader(t)
@@ -780,201 +779,201 @@ class FieldsScreen(tk.Frame):
                 for row in headreader:
                         header_list.append(row[0])
         
-        paddx = 2
-        paddy = 2
+        paddx = 380
+        paddy = 75
         
         ####Document fields (title, client, etc)
         # title entry
         label3 = tk.Label(self, text="Test Point ID:", font=SMALL_FONT)
-        label3.grid(row=2,column=1, padx=paddx,pady=paddy)
-        label3.config(bg="grey25",fg="white")
+        label3.place(x=20,y=100)
+        label3.config(bg="grey25",fg="#7fa6a3")
         
         global title
         self.title = StringVar(self, value=header_list[0])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.title)
-        self.textbox.grid(row=3,column=1, padx=paddx,pady=paddy)
+        self.textbox.place(x=20,y=140)
         title = self.title
         
         # client entry
         label4 = tk.Label(self, text="Client:", font=SMALL_FONT)
-        label4.grid(row=4,column=1, padx=paddx,pady=paddy)
-        label4.config(bg="grey25",fg="white")
+        label4.place(x=20,y=100+paddy)
+        label4.config(bg="grey25",fg="#7fa6a3")
         
         global client
         self.client = StringVar(self, value=header_list[1])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.client)
-        self.textbox.grid(row=5,column=1, padx=paddx,pady=paddy)
+        self.textbox.place(x=20,y=140+paddy)
         client = self.client
         
         # test gas entry
         label5 = tk.Label(self, text="Test Gas:", font=SMALL_FONT)
-        label5.grid(row=6,column=1, padx=paddx,pady=paddy)
-        label5.config(bg="grey25",fg="white")
+        label5.place(x=20,y=100+paddy*2)
+        label5.config(bg="grey25",fg="#7fa6a3")
         
         global test_gas
         self.test_gas = StringVar(self, value=header_list[2])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.test_gas)
-        self.textbox.grid(row=7,column=1, padx=paddx,pady=paddy)
+        self.textbox.place(x=20,y=140+paddy*2)
         test_gas = self.test_gas
         
         # source gas entry
         label6 = tk.Label(self, text="Source Gas:", font=SMALL_FONT)
-        label6.grid(row=8,column=1, padx=paddx,pady=paddy)
-        label6.config(bg="grey25",fg="white")
+        label6.place(x=20,y=100+paddy*3)
+        label6.config(bg="grey25",fg="#7fa6a3")
         
         global source_gas
         self.source_gas = StringVar(self, value=header_list[3])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.source_gas)
-        self.textbox.grid(row=9,column=1, padx=paddx,pady=paddy)
+        self.textbox.place(x=20,y=140+paddy*3)
         source_gas = self.source_gas
         
         # technician entry
         label7 = tk.Label(self, text="Technician:", font=SMALL_FONT)
-        label7.grid(row=10,column=1, padx=paddx,pady=paddy)
-        label7.config(bg="grey25",fg="white")
+        label7.place(x=20,y=100+paddy*4)
+        label7.config(bg="grey25",fg="#7fa6a3")
         
         global technician
         self.technician = StringVar(self, value=header_list[4])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.technician)
-        self.textbox.grid(row=11,column=1, padx=paddx,pady=paddy)
+        self.textbox.place(x=20,y=140+paddy*4)
         technician = self.technician
         
         # system flow entry
         label8 = tk.Label(self, text="System Flow:", font=SMALL_FONT)
-        label8.grid(row=12,column=1, padx=paddx,pady=paddy)
-        label8.config(bg="grey25",fg="white")
+        label8.place(x=20,y=100+paddy*5)
+        label8.config(bg="grey25",fg="#7fa6a3")
         
         global system_flow
         self.system_flow = StringVar(self, value=header_list[5])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.system_flow)
-        self.textbox.grid(row=13,column=1, padx=paddx,pady=paddy)
+        self.textbox.place(x=20,y=140+paddy*5)
         system_flow = self.system_flow
         
         #comments entry
         label9 = tk.Label(self, text="Comments:", font=SMALL_FONT)
-        label9.grid(row=14,column=1, padx=paddx,pady=paddy)
-        label9.config(bg="grey25",fg="white")
+        label9.place(x=20,y=100+paddy*6)
+        label9.config(bg="grey25",fg="#7fa6a3")
         
         global comments
         self.comments = StringVar(self, value=header_list[6])
         self.textbox = ttk.Entry(self,width=40, textvariable = self.comments)
-        self.textbox.grid(row=15,column=1, padx=paddx,pady=paddy)
+        self.textbox.place(x=20,y=140+paddy*6)
         comments = self.comments
         
         ### analyser info entries
         ## delta f info entry
         #deltaf serial number entry
-        label10 = tk.Label(self, text="Delta F", font=LARGE_FONT)
-        label10.grid(row=2,column=2, padx=paddx,pady=paddy)
-        label10.config(bg="grey25", fg="#7fa6a3")
+        label10 = tk.Label(self, text="Delta-F", font=LARGE_FONT)
+        label10.place(x=20+paddx,y=300)
+        label10.config(bg="grey25", fg="white")
         
-        label10 = tk.Label(self, text="Instrument Serial #:", font=SMALL_FONT)
-        label10.grid(row=3,column=2, padx=paddx,pady=paddy)
-        label10.config(bg="grey25",fg="white")
+        label10 = tk.Label(self, text="Delta-F Serial #:", font=SMALL_FONT)
+        label10.place(x=20+paddx,y=340)
+        label10.config(bg="grey25",fg="#7fa6a3")
         
         global deltaf_serial
         self.deltaf_serial = StringVar(self, value=header_list[7])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.deltaf_serial)
-        self.textbox.grid(row=4,column=2, padx=paddx,pady=paddy)
+        self.textbox.place(x=20+paddx,y=380)
         deltaf_serial = self.deltaf_serial
         
         #deltaf calibration date entry
-        label11 = tk.Label(self, text="Instrument Calibration Date:", font=SMALL_FONT)
-        label11.grid(row=5,column=2, padx=paddx,pady=paddy)
-        label11.config(bg="grey25",fg="white")
+        label11 = tk.Label(self, text="Delta-F Calibration Date:", font=SMALL_FONT)
+        label11.place(x=20+paddx,y=340+paddy)
+        label11.config(bg="grey25",fg="#7fa6a3")
         
         global deltaf_cal
         self.deltaf_cal = StringVar(self, value=header_list[8])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.deltaf_cal)
-        self.textbox.grid(row=6,column=2, padx=paddx,pady=paddy)
+        self.textbox.place(x=20+paddx,y=380+paddy)
         deltaf_cal = self.deltaf_cal
         
         #instrument flow entry
-        label12 = tk.Label(self, text="Instrument Flow:", font=SMALL_FONT)
-        label12.grid(row=7,column=2, padx=paddx,pady=paddy)
-        label12.config(bg="grey25",fg="white")
+        label12 = tk.Label(self, text="Delta-F Flow:", font=SMALL_FONT)
+        label12.place(x=20+paddx,y=340+paddy*2)
+        label12.config(bg="grey25",fg="#7fa6a3")
         
         global deltaf_flow
         self.deltaf_flow = StringVar(self, value=header_list[9])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.deltaf_flow)
-        self.textbox.grid(row=8,column=2, padx=paddx,pady=paddy)
+        self.textbox.place(x=20+paddx,y=380+paddy*2)
         deltaf_flow = self.deltaf_flow
         
         #instrument specification
         label13 = tk.Label(self, text="Specification", font=SMALL_FONT)
-        label13.grid(row=9,column=2, padx=paddx,pady=paddy)
-        label13.config(bg="grey25",fg="white")
+        label13.place(x=20+paddx,y=340+paddy*3)
+        label13.config(bg="grey25",fg="#7fa6a3")
         
         global deltaf_spec
         self.deltaf_spec = StringVar(self, value=header_list[10])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.deltaf_spec)
-        self.textbox.grid(row=10,column=2, padx=paddx,pady=paddy)
+        self.textbox.place(x=20+paddx,y=380+paddy*3)
         deltaf_spec = self.deltaf_spec
         
         ## tracer2 info entry
         #tracer2 serial number entry
         label10 = tk.Label(self, text="Meeco Tracer2", font=LARGE_FONT)
-        label10.grid(row=2,column=3, padx=paddx,pady=paddy)
-        label10.config(bg="grey25", fg="#7fa6a3")
+        label10.place(x=20+paddx*2,y=300)
+        label10.config(bg="grey25", fg="white")
         
         label10 = tk.Label(self, text="Instrument Serial #:", font=SMALL_FONT)
-        label10.grid(row=3,column=3, padx=paddx,pady=paddy)
-        label10.config(bg="grey25",fg="white")
+        label10.place(x=20+paddx*2,y=340)
+        label10.config(bg="grey25",fg="#7fa6a3")
         
         global tracer_serial
         self.tracer_serial = StringVar(self, value=header_list[11])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.tracer_serial)
-        self.textbox.grid(row=4,column=3, padx=paddx,pady=paddy)
+        self.textbox.place(x=20+paddx*2,y=380)
         tracer_serial = self.tracer_serial
         
         #tracer2 calibration date entry
         label11 = tk.Label(self, text="Instrument Calibration Date:", font=SMALL_FONT)
-        label11.grid(row=5,column=3, padx=paddx,pady=paddy)
-        label11.config(bg="grey25",fg="white")
+        label11.place(x=20+paddx*2,y=340+paddy)
+        label11.config(bg="grey25",fg="#7fa6a3")
         
         global tracer_cal
         self.tracer_cal = StringVar(self, value=header_list[12])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.tracer_cal)
-        self.textbox.grid(row=6,column=3, padx=paddx,pady=paddy)
+        self.textbox.place(x=20+paddx*2,y=380+paddy)
         tracer_cal = self.tracer_cal
         
         #instrument flow entry
         label12 = tk.Label(self, text="Instrument Flow:", font=SMALL_FONT)
-        label12.grid(row=7,column=3, padx=paddx,pady=paddy)
-        label12.config(bg="grey25",fg="white")
+        label12.place(x=20+paddx*2,y=340+paddy*2)
+        label12.config(bg="grey25",fg="#7fa6a3")
         
         global tracer_flow
         self.tracer_flow = StringVar(self, value=header_list[13])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.tracer_flow)
-        self.textbox.grid(row=8,column=3, padx=paddx,pady=paddy)
+        self.textbox.place(x=20+paddx*2,y=380+paddy*2)
         tracer_flow = self.tracer_flow
         
         #instrument specification
         label13 = tk.Label(self, text="Specification", font=SMALL_FONT)
-        label13.grid(row=9,column=3, padx=paddx,pady=paddy)
-        label13.config(bg="grey25",fg="white")
+        label13.place(x=20+paddx*2,y=340+paddy*3)
+        label13.config(bg="grey25",fg="#7fa6a3")
         
         global tracer_spec
         self.tracer_spec = StringVar(self, value=header_list[14])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.tracer_spec)
-        self.textbox.grid(row=10,column=3, padx=paddx,pady=paddy)
+        self.textbox.place(x=20+paddx*2,y=380+paddy*3)
         tracer_spec = self.tracer_spec
         
         #current o2
-        label13 = tk.Label(self, text="Current H2O:", font=LARGE_FONT)
-        label13.grid(row=13,column=2, padx=paddx,pady=paddy)
-        label13.config(bg="grey25",fg="white")
+        #label13 = tk.Label(self, text="Current H2O:", font=LARGE_FONT)
+        #label13.grid(row=13,column=2, padx=paddx,pady=paddy)
+        #label13.config(bg="grey25",fg="white")
         
-        label14 = tk.Label(self,textvariable=currento2, width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=14, column=3, padx=paddx,pady=paddy)
+        #label14 = tk.Label(self,textvariable=currento2, width=20,bg="grey35",fg="white", font=SMALL_FONT)
+        #label14.grid(row=14, column=3, padx=paddx,pady=paddy)
         
         #current h2o
-        label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
-        label13.grid(row=13,column=3, padx=paddx,pady=paddy)
-        label13.config(bg="grey25",fg="white")
+        #label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
+        #label13.grid(row=13,column=3, padx=paddx,pady=paddy)
+        #label13.config(bg="grey25",fg="white")
         
-        label14 = tk.Label(self,textvariable=currenth2o, width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        label14.grid(row=14, column=2, padx=paddx,pady=paddy)
+        #label14 = tk.Label(self,textvariable=currenth2o, width=20,bg="grey35",fg="white", font=SMALL_FONT)
+        #label14.grid(row=14, column=2, padx=paddx,pady=paddy)
         
         
         
@@ -1004,7 +1003,7 @@ class PageOne(tk.Frame):
         #Oxygen DeltaF Graph
         canvas1 = FigureCanvasTkAgg(f1, self)
         canvas1.draw()
-        canvas1.get_tk_widget().grid(row=1,column=1,rowspan=7,columnspan=2)
+        canvas1.get_tk_widget().place(x=5,y=5)
         
         #Moisture Tracer Graph
         #canvas2 = FigureCanvasTkAgg(f2, self)
@@ -1020,15 +1019,15 @@ class PageOne(tk.Frame):
         #canvas2._tkcanvas.grid(row=3,column=2)
         
         #Stop Recording Button => starts the stop() function
-        button3 = tk.Button(self, text="Stop Recording",bg="#D73A3A",fg="grey85",width=16,height = 2, font=('calibri',36,'bold'), command=self.stop)
-        button3.grid(row=8,column=2, pady=3, padx=2)
+        button3 = tk.Button(self, text="Stop Recording",bg="#D73A3A",fg="grey85",width=16,height = 1, font=('calibri',36,'bold'), command=self.stop)
+        button3.place(x=430,y=540)
         
         #Start Recording Button => starts the record() function
-        button2 = tk.Button(self, text="Start Recording",bg="#D73A3A",fg="grey85",width=16,height = 2,font=('calibri',36,'bold'), command=self.record)
-        button2.grid(row=8,column=1, pady=3, padx=2)
+        button2 = tk.Button(self, text="Start Recording",bg="#D73A3A",fg="grey85",width=16,height = 1,font=('calibri',36,'bold'), command=self.record)
+        button2.place(x=5,y=540)
         
         button1 = tk.Button(self, text="Back",bg="grey15",fg="grey85",width=20, command=lambda: controller.show_frame(StartPage))
-        button1.grid(row=8,column=3, pady=3, padx=2)
+        button1.place(x=875,y=440)
         
         #button2 = tk.Button(self, text="PDF",bg="grey15",fg="grey85",width=20, command=lambda: controller.show_frame(PageTwo))
         #button2.grid(row=7,column=3, pady=3, padx=2)
@@ -1039,35 +1038,35 @@ class PageOne(tk.Frame):
         #self.label15 = tk.Label(self, text="IDLE", bg="IndianRed",fg="grey85",width=20,height=2, font=('Century Gothic',10,'bold'))
         #self.label15.grid(row=2,column=3, pady=3, padx=2)
         
-        self.gambar = Image.open('qam_logo_transparent(500).png')
+        self.gambar = Image.open('qam_logo_transparent(200).png')
         self.imgSplash = ImageTk.PhotoImage(self.gambar)
         self.img = Label(self, image=self.imgSplash, bg="grey25")
         self.img.image = self.imgSplash
-        self.img.grid(row=1,column=3, rowspan=1 , sticky=N)
+        self.img.place(x=875, y=5)
         
         #Start Time Display
-        label13 = tk.Label(self, text="Start Time:", font=LARGE_FONT)
-        label13.grid(row=2,column=3)
+        label13 = tk.Label(self, text="Start Time:", font=SMALL_FONT)
+        label13.place(x=875, y=150)
         label13.config(bg="grey25",fg="white")
         
         label14 = tk.Label(self,textvariable=start_timet, width=20,bg="grey25",fg="#FFA500", font=('calibri',20,'bold'))
-        label14.grid(row=3, column=3)
+        label14.place(x=820, y=190)
         
         #current o2
-        label13 = tk.Label(self, text="Current O2:", font=LARGE_FONT)
-        label13.grid(row=6,column=3)
+        label13 = tk.Label(self, text="Current O2:", font=SMALL_FONT)
+        label13.place(x=875, y=250)
         label13.config(bg="grey25",fg="white")
         
         label14 = tk.Label(self,textvariable=currento2, width=20,bg="grey25",fg="#60D500", font=('calibri',20,'bold'))
-        label14.grid(row=7, column=3)
+        label14.place(x=820, y=290)
         
         #current h2o
-        label13 = tk.Label(self, text="Current H2O:", font=LARGE_FONT)
-        label13.grid(row=4,column=3)
+        label13 = tk.Label(self, text="Current H2O:", font=SMALL_FONT)
+        label13.place(x=875, y=350)
         label13.config(bg="grey25",fg="white")
         
         label14 = tk.Label(self,textvariable=currenth2o, width=20,bg="grey25",fg="#2FA4FF", font=('calibri',20,'bold'))
-        label14.grid(row=5, column=3)
+        label14.place(x=820, y=390)
         
         
     #def idle_on_off(self):
@@ -1568,10 +1567,10 @@ class PageOne(tk.Frame):
                                 o2IsWorking = False
                 
         currento2.set(o2)
-        #if o2IsWorking==True:
-        #        print('o2 is working')
-        #if o2IsWorking==False:
-        #        print('o2 is fucked')
+        if o2IsWorking==True:
+                print('o2 is working')
+        if o2IsWorking==False:
+                print('o2 is fucked')
         try:
                 if o2data_max<o2:
                         o2data_max = o2
@@ -1633,10 +1632,10 @@ class PageOne(tk.Frame):
         if h2o<0:
                 h2o=0
         currenth2o.set(h2o)
-        #if h2oIsWorking==True:
-        #        print('h2o is working')
-        #if h2oIsWorking==False:
-        #        print('h2o is fucked')        
+        if h2oIsWorking==True:
+                print('h2o is working')
+        if h2oIsWorking==False:
+                print('h2o is fucked')        
                 
         try:
                 if h2odata_max<h2o:

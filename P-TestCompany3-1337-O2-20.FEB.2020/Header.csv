@@ -1,0 +1,18 @@
+test_point , TFS WAr IN CLEANROOM
+location , TFS WAr
+qam_client , TFS
+test_gas , Argon
+source_gas , 39
+tech , JCH
+sys_flow , 2.1
+comments , TFS WAr INSIDE CLEANROOM; FURTHEST POINT
+D_serial , 17414-44-1
+D_cal , 04/2019
+D_flow , 1.1
+D_spec , 10 above source
+M_serial , 1337-45-8
+M_cal , 07/2019
+M_flow , 2.1
+M_spec , 10 above source
+start_time , 2020-02-13 14:54:56
+stop_time , 2020-02-13 14:55:16

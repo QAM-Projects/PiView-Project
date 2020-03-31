@@ -5,6 +5,7 @@ matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.widgets import SpanSelector
 from matplotlib.figure import Figure
 import matplotlib.animation as animation
 from matplotlib import style
@@ -12,6 +13,8 @@ import matplotlib.pyplot as plt
 from fpdf import FPDF
 from statistics import mean
 
+import random
+import re
 import serial
 import time
 import binascii
@@ -27,7 +30,9 @@ import PIL
 from PIL import ImageTk
 from PIL import Image
 import os, sys
-
+import subprocess
+from tkinter import Toplevel
+from tkinter import messagebox
 
 QAM_GREEN = "#7fa6a3"
 #have a method for checking if the usb chords are plugged in correctly
@@ -284,7 +289,7 @@ def write_serial_int(send,n):
     echo = ser.read(1)
     data = data + echo
     return(int(data[4]))
-
+    
 
     ser.close()
     if int(data[4]) == 1:
@@ -348,7 +353,7 @@ def get_h20():
     data = bytearray()
     echo = bytearray()
     command=bytearray([146])
-    operand =bytearray([1])
+    operand =bytearray([0])
     sleepy = 0.02
     
     ser = serial.Serial(
@@ -448,10 +453,10 @@ o2IsWorking = True
 global h2oIsWorking
 h2oIsWorking = True
 f1 = Figure(figsize=(8,5),dpi=100)
-#f2 = Figure(figsize=(4,3),dpi=100)
+#f2 = Figure(figsize=(10,2),dpi=100)
 a1 = f1.add_subplot(111)
 #a2 = f2.add_subplot(111)
-#f2.subplots_adjust(left=0.25, right=0.9, bottom =0.2, top=0.9)
+#f2.subplots_adjust(left=0.12, right=0.95, bottom =0.2, top=0.9)
 f1.subplots_adjust(left=0.12, right=0.95, bottom =0.2, top=0.9)
 o2_dataList = ""
 h2o_dataList = ""
@@ -459,6 +464,8 @@ recording=False
 start_time=datetime.now()
 global start_timee
 start_timee = start_time.strftime("%m_%d_%y_%I:%M:%S")
+h2odata_max = 10
+h2odata_min = 0
 #global start_timet
 #start_timet = StringVar(value = '0')
 #start_timet.set(start_time.strftime("%I:%M %p"))
@@ -493,14 +500,14 @@ class RPiReader(tk.Tk):
         splash.destroy()
         self.deiconify()
         container = tk.Frame(self, bg='black')
-        self.geometry("1200x700+300+200")
+        self.geometry("1400x900+300+200")
         container.grid(row=0, column=0, sticky="nsew")
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
         
         self.frames = { }
         
-        for F in (StartPage, PageOne, PageTwo, FieldsScreen):
+        for F in (StartPage, PageOne, ClientFieldsScreen, TestPointFieldsScreen, AnalyzerFieldsScreen):
             
             frame = F(container, self)
             
@@ -519,10 +526,6 @@ class RPiReader(tk.Tk):
         
         
         
-        #button1 = ttk.Button(self, text="Enter", command=lambda: controller.show_frame(StartPage))
-        #button1.grid(row=3,column=4)
-        
-        
 
 
 #StartPage appears first. contains
@@ -531,14 +534,11 @@ class RPiReader(tk.Tk):
 class StartPage(tk.Frame):
     recording = False
     
-
-        
-    
     def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent, width=1200, height=700)
-        #label1 = tk.Label(self, text="Main Screen", font=LARGEST_FONT)
-        #label1.grid(row=1,column=2, columnspan=5, sticky=N)
-        #label1.config(bg="grey25", fg=QAM_GREEN)
+        tk.Frame.__init__(self, parent, width=1600, height=1100)
+        label1 = tk.Label(self, text="Quality Assurance Management Inc.", font=LARGEST_FONT)
+        label1.place(x=120,y=5)
+        label1.config(bg="grey25", fg=QAM_GREEN)
         
         self.configure(background="grey25")
         
@@ -553,6 +553,7 @@ class StartPage(tk.Frame):
         
         global title
         global client
+        global location
         global test_gas
         global source_gas
         global technician
@@ -568,20 +569,20 @@ class StartPage(tk.Frame):
         global tracer_spec
         title = header_list[0]
         client = header_list[1]
-        test_gas = header_list[2]
-        source_gas = header_list[3]
-        technician = header_list[4]
-        system_flow = header_list[5]
-        comments = header_list[6]
-        deltaf_serial = header_list[7]
-        deltaf_cal = header_list[8]
-        deltaf_flow = header_list[9]
-        deltaf_spec = header_list[10]
-        tracer_serial = header_list[11]
-        tracer_cal = header_list[12]
-        tracer_flow = header_list[13]
-        tracer_spec = header_list[14]
-        print(title)
+        location = header_list[2]
+        test_gas = header_list[3]
+        source_gas = header_list[4]
+        technician = header_list[5]
+        system_flow = header_list[6]
+        comments = header_list[7]
+        deltaf_serial = header_list[8]
+        deltaf_cal = header_list[9]
+        deltaf_flow = header_list[10]
+        deltaf_spec = header_list[11]
+        tracer_serial = header_list[12]
+        tracer_cal = header_list[13]
+        tracer_flow = header_list[14]
+        tracer_spec = header_list[15]
         
         paddx = 15
         paddy = 15
@@ -610,26 +611,36 @@ class StartPage(tk.Frame):
         s1.configure("h2o.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="#00BFFF")
         s1.configure("o2.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="#00CD66")
         s1.configure("both.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="Orange")
+        
+        
 
         # Radiobuttons
-        rad_h2o = ttk.Radiobutton(self, text="H2O", style="h2o.TRadiobutton", variable=var2, value="radH2O", command=h2o_selected).place(x=500,y=20)
-        rad_o2 = ttk.Radiobutton(self, text="O2", style="o2.TRadiobutton", variable=var2, value="radO2", command=o2_selected).place(x=600,y=20)
-        rad_both = ttk.Radiobutton(self, text="Both", style="both.TRadiobutton", variable=var2, value="radBoth", command=both_selected).place(x=680,y=20)
+        rad_h2o = ttk.Radiobutton(self, text="H2O", style="h2o.TRadiobutton", variable=var2, value="radH2O", command=h2o_selected).place(x=500,y=200)
+        rad_o2 = ttk.Radiobutton(self, text="O2", style="o2.TRadiobutton", variable=var2, value="radO2", command=o2_selected).place(x=600,y=200)
+        rad_both = ttk.Radiobutton(self, text="Both", style="both.TRadiobutton", variable=var2, value="radBoth", command=both_selected).place(x=680,y=200)
         
-        self.gambar = Image.open('qam_logo_transparent(2).png')
-        self.imgSplash = ImageTk.PhotoImage(self.gambar)
-        self.img = Label(self, image=self.imgSplash, bg="grey25")
-        self.img.image = self.imgSplash
-        self.img.place(x=1,y=1)
+        global img
+        gambar = Image.open('graph.png')
+        imgSplash = ImageTk.PhotoImage(gambar)
+        img = Label(self, image=imgSplash, bg="grey25")
+        img.image = imgSplash
+        img.place(x=100,y=80)
         
         photo = PhotoImage(file = 'chart-line-solid.png')
         photoimage = photo.subsample(3,3)
         
-        button1 = tk.Button(self, text="Modify Report",bg=QAM_GREEN,fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 17, height = 2, command=lambda: controller.show_frame(PageTwo))
-        button1.place(x=20,y=200)
+        button1 = tk.Button(self, text="Modify Report",bg=QAM_GREEN,fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 18, height = 2, command=manage_pdf)
+        button1.place(x=20,y=660)
         
-        button1 = tk.Button(self, text="Set Fields",bg="Orange",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 17, height = 2, command=lambda: controller.show_frame(FieldsScreen))
-        button1.place(x=500,y=200)
+        
+        button1 = tk.Button(self, text="Set Client Fields",bg="Orange",fg="White",font=('calibri',28,'bold'),borderwidth = '1', width = 15, height = 1, command=lambda: controller.show_frame(ClientFieldsScreen))
+        button1.place(x=20,y=480)
+        
+        button1 = tk.Button(self, text="Set Test Fields",bg="Orange",fg="White",font=('calibri',28,'bold'),borderwidth = '1', width = 15, height = 1, command=lambda: controller.show_frame(TestPointFieldsScreen))
+        button1.place(x=338,y=480)
+        
+        button1 = tk.Button(self, text="Set Analyzer Fields",bg="Orange",fg="White",font=('calibri',28,'bold'),borderwidth = '1', width = 15, height = 1, command=lambda: controller.show_frame(AnalyzerFieldsScreen))
+        button1.place(x=655,y=480)
         
         #Start Recording Button => starts the record() function and shows test screen                                                ###work in progress###
         #button2 = tk.Button(self, text="Start Test",bg="grey15",fg="grey75",font=LARGE_FONT, command=self.start_show_test)
@@ -639,31 +650,32 @@ class StartPage(tk.Frame):
         
         
         #This one just goes to test screen... see above work in progress
-        button1 = tk.Button(self, text="Begin Test",bg="Red",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 37, height = 2, command=lambda: controller.show_frame(PageOne))
-        button1.place(x=20,y=500)
+        button1 = tk.Button(self, text="Begin Test",bg="Red",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 18, height = 2, command=lambda: controller.show_frame(PageOne))
+        button1.place(x=20,y=540)
         
         #Show Current O2 Reading
         label13 = tk.Label(self, text="Current O2:", font=SMALL_FONT)
-        label13.place(x=500,y=70)
+        label13.place(x=500,y=545)
         label13.config(bg="grey25",fg="white")
         
         global currento2
         currento2 = StringVar(value=0)
         label14 = tk.Label(self,textvariable=currento2, width=10,bg="grey35",fg="#00CD66", font=('calibri',20,'bold'))
-        label14.place(x=680,y=70)
+        label14.place(x=680,y=545)
         
         #Show Current H2O Reading
         label13 = tk.Label(self, text="Current H2O:", font=SMALL_FONT)
-        label13.place(x=500,y=110)
+        label13.place(x=500,y=605)
         label13.config(bg="grey25",fg="white")
         
         global currenth2o
         currenth2o = StringVar(value=0)
         label14 = tk.Label(self,textvariable=currenth2o, width=10,bg="grey35",fg="#00BFFF", font=('calibri',20,'bold'))
-        label14.place(x=680,y=110)
+        label14.place(x=680,y=605)
         
-        button1 = tk.Button(self, text="Equipment Controls",bg="#2FA4FF",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 37, height = 2, command=equipment_controls)
-        button1.place(x=20,y=350)
+        button1 = tk.Button(self, text="Equipment Controls",bg="#2FA4FF",fg="White",font=('calibri',36,'bold'),borderwidth = '1', width = 18, height = 2, command=equipment_controls)
+        button1.place(x=485,y=660)
+     
         
 def equipment_controls():
         paddx = 15
@@ -726,7 +738,7 @@ def equipment_controls():
         
 
         
-class FieldsScreen(tk.Frame):
+class ClientFieldsScreen(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
@@ -744,22 +756,26 @@ class FieldsScreen(tk.Frame):
         
         def update_fields():
                 global header_list
-                header_list =[]
-                header_list.append(title.get())
-                header_list.append(client.get())
-                header_list.append(test_gas.get())
-                header_list.append(source_gas.get())
-                header_list.append(technician.get())
-                header_list.append(system_flow.get())
-                header_list.append(comments.get())
-                header_list.append(deltaf_serial.get())
-                header_list.append(deltaf_cal.get())
-                header_list.append(deltaf_flow.get())
-                header_list.append(deltaf_spec.get())
-                header_list.append(tracer_serial.get())
-                header_list.append(tracer_cal.get())
-                header_list.append(tracer_flow.get())
-                header_list.append(tracer_spec.get())
+                print(header_list)
+                header_list[1] = self.client.get()
+                header_list[2] = self.location.get()
+                header_list[7] = self.comments.get()
+                #header_list.append(title.get())
+                #header_list.append(client.get())
+                #header_list.append(location.get())
+                #header_list.append(test_gas.get())
+                #header_list.append(source_gas.get())
+                #header_list.append(technician.get())
+                #header_list.append(system_flow.get())
+                #header_list.append(comments.get())
+                #header_list.append(deltaf_serial.get())
+                #header_list.append(deltaf_cal.get())
+                #header_list.append(deltaf_flow.get())
+                #header_list.append(deltaf_spec.get())
+                #header_list.append(tracer_serial.get())
+                #header_list.append(tracer_cal.get())
+                #header_list.append(tracer_flow.get())
+                #header_list.append(tracer_spec.get())
                 with open('/home/pi/Desktop/JoelPi/Header_default.csv', 'w+',newline='') as d:
                     writer4 = csv.writer(d)
                     for row in header_list:
@@ -769,8 +785,107 @@ class FieldsScreen(tk.Frame):
         button1 = tk.Button(self, text="Back",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: controller.show_frame(StartPage))
         button1.place(x=20,y=20)
         
-        #button1 = tk.Button(self, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
-        #button1.grid(row=4,column=4)
+        button1 = tk.Button(self, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
+        button1.place(x=20,y=80)
+        
+        with open('Header_default.csv', newline='') as t:
+                headreader = csv.reader(t)
+                global header_list
+                header_list = []
+                for row in headreader:
+                        header_list.append(row[0])
+        
+        paddx = 380
+        paddy = 75
+        
+        ####Document fields (title, client, etc)
+        
+        
+        # client entry
+        label4 = tk.Label(self, text="Client:", font=SMALL_FONT)
+        label4.place(x=20,y=100+paddy*1)
+        label4.config(bg="grey25",fg="#7fa6a3")
+        
+        global client
+        self.client = StringVar(self, value=header_list[1])
+        self.textbox = ttk.Entry(self,width=20, textvariable = self.client)
+        self.textbox.place(x=20,y=140+paddy*1)
+        client = self.client
+        
+        # Location entry
+        label4 = tk.Label(self, text="Location:", font=SMALL_FONT)
+        label4.place(x=20,y=100+paddy*2)
+        label4.config(bg="grey25",fg="#7fa6a3")
+        
+        global location
+        self.location = StringVar(self, value=header_list[2])
+        self.textbox = ttk.Entry(self,width=20, textvariable = self.location)
+        self.textbox.place(x=20,y=140+paddy*2)
+        location = self.location
+        
+        
+        #comments entry
+        label9 = tk.Label(self, text="Comments:", font=SMALL_FONT)
+        label9.place(x=20,y=100+paddy*3)
+        label9.config(bg="grey25",fg="#7fa6a3")
+        
+        global comments
+        self.comments = StringVar(self, value=header_list[7])
+        self.textbox = ttk.Entry(self,width=40, textvariable = self.comments)
+        self.textbox.place(x=20,y=140+paddy*3)
+        comments = self.comments
+        
+        
+        
+class TestPointFieldsScreen(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        #label1 = tk.Label(self, text="Field Screen", font=LARGEST_FONT)
+        #label1.grid(row=1,column=1, columnspan=3, sticky=N)
+        #label1.config(bg="grey25", fg="#7fa6a3")
+        
+        self.configure(background="grey25")
+        
+        self.gambar = Image.open('qam_logo_transparent(2).png')
+        self.imgSplash = ImageTk.PhotoImage(self.gambar)
+        self.img = Label(self, image=self.imgSplash, bg="grey25")
+        self.img.image = self.imgSplash
+        self.img.place(x=400, y=10)
+        
+        def update_fields():
+                global header_list
+                header_list[0] = self.title.get()
+                header_list[4] = self.source_gas.get()
+                header_list[3] = self.test_gas.get()
+                header_list[5] = self.technician.get()
+                #header_list.append(title.get())
+                #header_list.append(client.get())
+                #header_list.append(location.get())
+                #header_list.append(test_gas.get())
+                #header_list.append(source_gas.get())
+                #header_list.append(technician.get())
+                #header_list.append(system_flow.get())
+                #header_list.append(comments.get())
+                #header_list.append(deltaf_serial.get())
+                #header_list.append(deltaf_cal.get())
+                #header_list.append(deltaf_flow.get())
+                #header_list.append(deltaf_spec.get())
+                #header_list.append(tracer_serial.get())
+                #header_list.append(tracer_cal.get())
+                #header_list.append(tracer_flow.get())
+                #header_list.append(tracer_spec.get())
+                with open('/home/pi/Desktop/JoelPi/Header_default.csv', 'w+',newline='') as d:
+                    writer4 = csv.writer(d)
+                    for row in header_list:
+                        writer4.writerow([row])
+                    d.close()
+        
+        button1 = tk.Button(self, text="Back",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: controller.show_frame(StartPage))
+        button1.place(x=20,y=20)
+        
+        button1 = tk.Button(self, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
+        button1.place(x=20,y=80)
         
         with open('Header_default.csv', newline='') as t:
                 headreader = csv.reader(t)
@@ -785,25 +900,14 @@ class FieldsScreen(tk.Frame):
         ####Document fields (title, client, etc)
         # title entry
         label3 = tk.Label(self, text="Test Point ID:", font=SMALL_FONT)
-        label3.place(x=20,y=100)
+        label3.place(x=20,y=100+paddy*1)
         label3.config(bg="grey25",fg="#7fa6a3")
         
         global title
         self.title = StringVar(self, value=header_list[0])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.title)
-        self.textbox.place(x=20,y=140)
+        self.textbox.place(x=20,y=140+paddy*1)
         title = self.title
-        
-        # client entry
-        label4 = tk.Label(self, text="Client:", font=SMALL_FONT)
-        label4.place(x=20,y=100+paddy)
-        label4.config(bg="grey25",fg="#7fa6a3")
-        
-        global client
-        self.client = StringVar(self, value=header_list[1])
-        self.textbox = ttk.Entry(self,width=20, textvariable = self.client)
-        self.textbox.place(x=20,y=140+paddy)
-        client = self.client
         
         # test gas entry
         label5 = tk.Label(self, text="Test Gas:", font=SMALL_FONT)
@@ -811,7 +915,7 @@ class FieldsScreen(tk.Frame):
         label5.config(bg="grey25",fg="#7fa6a3")
         
         global test_gas
-        self.test_gas = StringVar(self, value=header_list[2])
+        self.test_gas = StringVar(self, value=header_list[3])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.test_gas)
         self.textbox.place(x=20,y=140+paddy*2)
         test_gas = self.test_gas
@@ -822,7 +926,7 @@ class FieldsScreen(tk.Frame):
         label6.config(bg="grey25",fg="#7fa6a3")
         
         global source_gas
-        self.source_gas = StringVar(self, value=header_list[3])
+        self.source_gas = StringVar(self, value=header_list[4])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.source_gas)
         self.textbox.place(x=20,y=140+paddy*3)
         source_gas = self.source_gas
@@ -833,130 +937,187 @@ class FieldsScreen(tk.Frame):
         label7.config(bg="grey25",fg="#7fa6a3")
         
         global technician
-        self.technician = StringVar(self, value=header_list[4])
+        self.technician = StringVar(self, value=header_list[5])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.technician)
         self.textbox.place(x=20,y=140+paddy*4)
         technician = self.technician
+               
+        
+class AnalyzerFieldsScreen(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        #label1 = tk.Label(self, text="Field Screen", font=LARGEST_FONT)
+        #label1.grid(row=1,column=1, columnspan=3, sticky=N)
+        #label1.config(bg="grey25", fg="#7fa6a3")
+        
+        self.configure(background="grey25")
+        
+        self.gambar = Image.open('qam_logo_transparent(2).png')
+        self.imgSplash = ImageTk.PhotoImage(self.gambar)
+        self.img = Label(self, image=self.imgSplash, bg="grey25")
+        self.img.image = self.imgSplash
+        self.img.place(x=400, y=10)
+        
+        def update_fields():
+                global header_list
+                header_list[6] = self.system_flow.get()
+                header_list[8] = self.deltaf_serial.get()
+                header_list[9] = self.deltaf_cal.get()
+                header_list[10] = self.deltaf_flow.get()
+                header_list[11] = self.deltaf_spec.get()
+                header_list[12] = self.tracer_serial.get()
+                header_list[13] = self.tracer_cal.get()
+                header_list[14] = self.tracer_flow.get()
+                header_list[15] = self.tracer_spec.get()
+                #header_list.append(title.get())
+                #header_list.append(client.get())
+                #header_list.append(location.get())
+                #header_list.append(test_gas.get())
+                #header_list.append(source_gas.get())
+                #header_list.append(technician.get())
+                #header_list.append(system_flow.get())
+                #header_list.append(comments.get())
+                #header_list.append(deltaf_serial.get())
+                #header_list.append(deltaf_cal.get())
+                #header_list.append(deltaf_flow.get())
+                #header_list.append(deltaf_spec.get())
+                #header_list.append(tracer_serial.get())
+                #header_list.append(tracer_cal.get())
+                #header_list.append(tracer_flow.get())
+                #header_list.append(tracer_spec.get())
+                with open('/home/pi/Desktop/JoelPi/Header_default.csv', 'w+',newline='') as d:
+                    writer4 = csv.writer(d)
+                    for row in header_list:
+                        writer4.writerow([row])
+                    d.close()
+        
+        button1 = tk.Button(self, text="Back",bg="grey15",fg="grey75",font=LARGE_FONT, command=lambda: controller.show_frame(StartPage))
+        button1.place(x=20,y=20)
+        
+        button1 = tk.Button(self, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
+        button1.place(x=20,y=80)
+        
+        with open('Header_default.csv', newline='') as t:
+                headreader = csv.reader(t)
+                global header_list
+                header_list = []
+                for row in headreader:
+                        header_list.append(row[0])
+        
+        paddx = 380
+        paddy = 75
+        
+        ####Document fields (title, client, etc)
         
         # system flow entry
         label8 = tk.Label(self, text="System Flow:", font=SMALL_FONT)
-        label8.place(x=20,y=100+paddy*5)
+        label8.place(x=20,y=100+paddy*1)
         label8.config(bg="grey25",fg="#7fa6a3")
         
         global system_flow
-        self.system_flow = StringVar(self, value=header_list[5])
+        self.system_flow = StringVar(self, value=header_list[6])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.system_flow)
-        self.textbox.place(x=20,y=140+paddy*5)
+        self.textbox.place(x=20,y=140+paddy*1)
         system_flow = self.system_flow
-        
-        #comments entry
-        label9 = tk.Label(self, text="Comments:", font=SMALL_FONT)
-        label9.place(x=20,y=100+paddy*6)
-        label9.config(bg="grey25",fg="#7fa6a3")
-        
-        global comments
-        self.comments = StringVar(self, value=header_list[6])
-        self.textbox = ttk.Entry(self,width=40, textvariable = self.comments)
-        self.textbox.place(x=20,y=140+paddy*6)
-        comments = self.comments
         
         ### analyser info entries
         ## delta f info entry
         #deltaf serial number entry
         label10 = tk.Label(self, text="Delta-F", font=LARGE_FONT)
-        label10.place(x=20+paddx,y=300)
+        label10.place(x=20+paddx*0,y=300)
         label10.config(bg="grey25", fg="white")
         
         label10 = tk.Label(self, text="Delta-F Serial #:", font=SMALL_FONT)
-        label10.place(x=20+paddx,y=340)
+        label10.place(x=20+paddx*0,y=340)
         label10.config(bg="grey25",fg="#7fa6a3")
         
         global deltaf_serial
-        self.deltaf_serial = StringVar(self, value=header_list[7])
+        self.deltaf_serial = StringVar(self, value=header_list[8])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.deltaf_serial)
-        self.textbox.place(x=20+paddx,y=380)
+        self.textbox.place(x=20+paddx*0,y=380)
         deltaf_serial = self.deltaf_serial
         
         #deltaf calibration date entry
         label11 = tk.Label(self, text="Delta-F Calibration Date:", font=SMALL_FONT)
-        label11.place(x=20+paddx,y=340+paddy)
+        label11.place(x=20+paddx*0,y=340+paddy)
         label11.config(bg="grey25",fg="#7fa6a3")
         
         global deltaf_cal
-        self.deltaf_cal = StringVar(self, value=header_list[8])
+        self.deltaf_cal = StringVar(self, value=header_list[9])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.deltaf_cal)
-        self.textbox.place(x=20+paddx,y=380+paddy)
+        self.textbox.place(x=20+paddx*0,y=380+paddy)
         deltaf_cal = self.deltaf_cal
         
         #instrument flow entry
         label12 = tk.Label(self, text="Delta-F Flow:", font=SMALL_FONT)
-        label12.place(x=20+paddx,y=340+paddy*2)
+        label12.place(x=20+paddx*0,y=340+paddy*2)
         label12.config(bg="grey25",fg="#7fa6a3")
         
         global deltaf_flow
-        self.deltaf_flow = StringVar(self, value=header_list[9])
+        self.deltaf_flow = StringVar(self, value=header_list[10])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.deltaf_flow)
-        self.textbox.place(x=20+paddx,y=380+paddy*2)
+        self.textbox.place(x=20+paddx*0,y=380+paddy*2)
         deltaf_flow = self.deltaf_flow
         
         #instrument specification
         label13 = tk.Label(self, text="Specification", font=SMALL_FONT)
-        label13.place(x=20+paddx,y=340+paddy*3)
+        label13.place(x=20+paddx*0,y=340+paddy*3)
         label13.config(bg="grey25",fg="#7fa6a3")
         
         global deltaf_spec
-        self.deltaf_spec = StringVar(self, value=header_list[10])
+        self.deltaf_spec = StringVar(self, value=header_list[11])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.deltaf_spec)
-        self.textbox.place(x=20+paddx,y=380+paddy*3)
+        self.textbox.place(x=20+paddx*0,y=380+paddy*3)
         deltaf_spec = self.deltaf_spec
         
         ## tracer2 info entry
         #tracer2 serial number entry
         label10 = tk.Label(self, text="Meeco Tracer2", font=LARGE_FONT)
-        label10.place(x=20+paddx*2,y=300)
+        label10.place(x=20+paddx*1,y=300)
         label10.config(bg="grey25", fg="white")
         
         label10 = tk.Label(self, text="Instrument Serial #:", font=SMALL_FONT)
-        label10.place(x=20+paddx*2,y=340)
+        label10.place(x=20+paddx*1,y=340)
         label10.config(bg="grey25",fg="#7fa6a3")
         
         global tracer_serial
-        self.tracer_serial = StringVar(self, value=header_list[11])
+        self.tracer_serial = StringVar(self, value=header_list[12])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.tracer_serial)
-        self.textbox.place(x=20+paddx*2,y=380)
+        self.textbox.place(x=20+paddx*1,y=380)
         tracer_serial = self.tracer_serial
         
         #tracer2 calibration date entry
         label11 = tk.Label(self, text="Instrument Calibration Date:", font=SMALL_FONT)
-        label11.place(x=20+paddx*2,y=340+paddy)
+        label11.place(x=20+paddx*1,y=340+paddy)
         label11.config(bg="grey25",fg="#7fa6a3")
         
         global tracer_cal
-        self.tracer_cal = StringVar(self, value=header_list[12])
+        self.tracer_cal = StringVar(self, value=header_list[13])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.tracer_cal)
-        self.textbox.place(x=20+paddx*2,y=380+paddy)
+        self.textbox.place(x=20+paddx*1,y=380+paddy)
         tracer_cal = self.tracer_cal
         
         #instrument flow entry
         label12 = tk.Label(self, text="Instrument Flow:", font=SMALL_FONT)
-        label12.place(x=20+paddx*2,y=340+paddy*2)
+        label12.place(x=20+paddx*1,y=340+paddy*2)
         label12.config(bg="grey25",fg="#7fa6a3")
         
         global tracer_flow
-        self.tracer_flow = StringVar(self, value=header_list[13])
+        self.tracer_flow = StringVar(self, value=header_list[14])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.tracer_flow)
-        self.textbox.place(x=20+paddx*2,y=380+paddy*2)
+        self.textbox.place(x=20+paddx*1,y=380+paddy*2)
         tracer_flow = self.tracer_flow
         
         #instrument specification
         label13 = tk.Label(self, text="Specification", font=SMALL_FONT)
-        label13.place(x=20+paddx*2,y=340+paddy*3)
+        label13.place(x=20+paddx*1,y=340+paddy*3)
         label13.config(bg="grey25",fg="#7fa6a3")
         
         global tracer_spec
         self.tracer_spec = StringVar(self, value=header_list[14])
         self.textbox = ttk.Entry(self,width=20, textvariable = self.tracer_spec)
-        self.textbox.place(x=20+paddx*2,y=380+paddy*3)
+        self.textbox.place(x=20+paddx*1,y=380+paddy*3)
         tracer_spec = self.tracer_spec
         
         #current o2
@@ -973,11 +1134,7 @@ class FieldsScreen(tk.Frame):
         #label13.config(bg="grey25",fg="white")
         
         #label14 = tk.Label(self,textvariable=currenth2o, width=20,bg="grey35",fg="white", font=SMALL_FONT)
-        #label14.grid(row=14, column=2, padx=paddx,pady=paddy)
-        
-        
-        
-    
+        #label14.grid(row=14, column=2, padx=paddx,pady=paddy)    
         
         
 class PageOne(tk.Frame):
@@ -1000,6 +1157,7 @@ class PageOne(tk.Frame):
         self.o2data_max = 0
         self.o2data_min = 0
         
+        global canvas1
         #Oxygen DeltaF Graph
         canvas1 = FigureCanvasTkAgg(f1, self)
         canvas1.draw()
@@ -1008,7 +1166,7 @@ class PageOne(tk.Frame):
         #Moisture Tracer Graph
         #canvas2 = FigureCanvasTkAgg(f2, self)
         #canvas2.draw()
-        #canvas2.get_tk_widget().grid(row=2,column=2,rowspan=6)
+        #canvas2.get_tk_widget().place(x=5,y=400)
         
         #toolbar = NavigationToolbar2Tk(canvas1,self)
         #toolbar.update()
@@ -1084,6 +1242,7 @@ class PageOne(tk.Frame):
 ### Start Recording function: writes o2, h20, and time variables to csv files        
     def record(self):
         
+        confirm_fields('start')
         #PageOne.idle_on_off(self)
         
         global recording
@@ -1093,11 +1252,10 @@ class PageOne(tk.Frame):
         
         global start_time
         start_time=datetime.now()
-        print(start_time)
+        #print(start_time)
         global start_timee
         start_timee = start_time.strftime("%m_%d_%y_%I:%M:%S")
         start_timet.set(start_time.strftime("%I:%M %p"))
-        
         
         
         global o2dataList
@@ -1108,30 +1266,28 @@ class PageOne(tk.Frame):
         global y2
         global x1
         global y1
-        o2dataList = ''
-        h2odataList = ''
         o2_dataList = ''
         h2o_dataList = ''
-        x2 = 0
-        y2 = 0
-        x1 = 0
-        y1 = 0
+        
+        #x2 = 0
+        #y2 = 0
+        #x1 = 0
+        #y1 = 0
         
         
         
         self.headerFileTitle = "Header"
-        path = directory + '/' + str(client.get()) + "_" + str(title.get()) + start_timee +"{}"
+        path = directory + '/' + str(client.get())+ "_" + str(location.get()) + "_" + str(title.get()) + start_timee
         i=0
-        while os.path.exists(path.format(str(i))):
-                i=int(i)+1
-        else:
-                os.mkdir(path.format(str(i)))
-                global pathF
-                pathF=str(path.format(str(i)))
-        with open(os.path.join(path.format(str(i)),self.headerFileTitle)+'.csv', 'w+', newline='') as c:
+        
+        os.mkdir(path)
+        global pathF
+        pathF=str(path)
+        with open(os.path.join(path,self.headerFileTitle)+'.csv', 'w+', newline='') as c:
             writer3 = csv.writer(c)
             writer3.writerow([title.get()])
             writer3.writerow([client.get()])
+            writer3.writerow([location.get()])
             writer3.writerow([test_gas.get()])
             writer3.writerow([source_gas.get()])
             writer3.writerow([technician.get()])
@@ -1154,28 +1310,36 @@ class PageOne(tk.Frame):
         global recording
         recording = False
         #PageOne.idle_on_off(self)
+        global stop_time
         stop_time= datetime.now()
         
         global o2MeanValue
         o2MeanValue = str(round(mean(o2Valuelist),2))
+        global o2MeanValueVar
         o2MeanValueVar = StringVar(value=o2MeanValue)
         global o2MaxValue
         o2MaxValue = str(max(o2Valuelist))
+        global o2MaxValueVar
         o2MaxValueVar = StringVar(value=o2MaxValue)
         global o2FinalValue
         o2FinalValue = str(o2Valuelist[-1])
+        global o2FinalValueVar
         o2FinalValueVar = StringVar(value=o2FinalValue)
         
         global h2oMeanValue
         h2oMeanValue = str(round(mean(h2oValuelist),2))
+        global h2oMeanValueVar
         h2oMeanValueVar = StringVar(value=h2oMeanValue)
         global h2oMaxValue
         h2oMaxValue = str(max(h2oValuelist))
+        global h2oMaxValueVar
         h2oMaxValueVar = StringVar(value=h2oMaxValue)
         global h2oFinalValue
         h2oFinalValue = str(h2oValuelist[-1])
+        global h2oFinalValueVar
         h2oFinalValueVar = StringVar(value=h2oFinalValue)
         
+        global pathF
         self.headerFileTitle = "Header"
         path = directory + '/' + str(title.get())
         with open(os.path.join(pathF,self.headerFileTitle)+'.csv', 'a', newline='') as c:
@@ -1189,85 +1353,118 @@ class PageOne(tk.Frame):
             writer3.writerow([h2oFinalValue])
             c.close()
             
-            
-            
+        global h2otest_passing
+        h2o_limit = re.findall(r"[-+]?\d*\.*\d+",header_list[15])
+        h2o_limit = float(h2o_limit[0])
+        
+        if float(h2oFinalValue) < h2o_limit:
+                h2otest_passing = True
+        if float(h2oFinalValue) > h2o_limit:
+                h2otest_passing = False
+        
+        global o2test_passing
+        o2_limit = re.findall(r"[-+]?\d*\.*\d+",header_list[15])
+        o2_limit = float(o2_limit[0])
+        
+        if float(o2FinalValue) < o2_limit:
+                o2test_passing = True
+        if float(o2FinalValue) > o2_limit:
+                o2test_passing = False
+        
+        
         with open('/home/pi/Desktop/JoelPi/Header_default.csv', 'w+',newline='') as d:
             writer4 = csv.writer(d)
             for row in header_list:
                 writer4.writerow([row])
             d.close()
+        
+        if o2test_passing == True and h2otest_passing == True:
+                pathG = os.path.join(os.path.dirname(pathF),"P_"+os.path.basename(pathF))
+                print(pathG)
+        else:
+                pathG = os.path.join(os.path.dirname(pathF),"F_"+os.path.basename(pathF))
+        os.rename(pathF,pathG)
+        pathF = pathG
+        confirm_fields(start_stop='stop')
             
         
-        def confirm_fields():
-                top4 = Toplevel()
-                top4.title("Confirm Fields")
-                label1 = tk.Label(top4, text="Field Screen", font=LARGEST_FONT)
-                label1.grid(row=1,column=1, columnspan=3, sticky=N)
-                label1.config(bg="grey25", fg="#7fa6a3")
+def confirm_fields(start_stop):
+        
+        top4 = Toplevel()
+        top4.title("Confirm Fields")
+        label1 = tk.Label(top4, text="Field Screen", font=LARGEST_FONT)
+        label1.grid(row=1,column=1, columnspan=3, sticky=N)
+        label1.config(bg="grey25", fg="#7fa6a3")
+        
+        top4.configure(background="grey25")
+        
+        top4.gambar = Image.open('qam_logo_transparent(2).png')
+        top4.imgSplash = ImageTk.PhotoImage(top4.gambar)
+        top4.img = Label(top4, image=top4.imgSplash, bg="grey25")
+        top4.img.image = top4.imgSplash
+        top4.img.grid(row=16,column=4,rowspan = 4, sticky=S)
+        
+        
+        
+        def update_fields():
+                path = directory + '/' + str(client.get())+ "_" + str(location.get()) + "_" + str(title.get()) + start_timee
+                i=0
                 
-                top4.configure(background="grey25")
+                #os.mkdir(path)
+                global pathG
+                pathG=str(path)
                 
-                top4.gambar = Image.open('qam_logo_transparent(2).png')
-                top4.imgSplash = ImageTk.PhotoImage(self.gambar)
-                top4.img = Label(self, image=self.imgSplash, bg="grey25")
-                top4.img.image = self.imgSplash
-                top4.img.grid(row=16,column=4,rowspan = 4, sticky=S)
+                os.chdir("/home/pi/Desktop/JoelPi")
+                global pathF
+                os.rename(pathF,pathG)
+                pathF = pathG
+                
+                global header_list
+                header_list =[]
+                header_list.append(title.get())
+                header_list.append(client.get())
+                header_list.append(location.get())
+                header_list.append(test_gas.get())
+                header_list.append(source_gas.get())
+                header_list.append(technician.get())
+                header_list.append(system_flow.get())
+                header_list.append(comments.get())
+                header_list.append(deltaf_serial.get())
+                header_list.append(deltaf_cal.get())
+                header_list.append(deltaf_flow.get())
+                header_list.append(deltaf_spec.get())
+                header_list.append(tracer_serial.get())
+                header_list.append(tracer_cal.get())
+                header_list.append(tracer_flow.get())
+                header_list.append(tracer_spec.get())
                 
                 
-                
-                def update_fields():
-                        path = directory + '/' + str(client.get()) + "_" + str(title.get()) + start_timee +"{}"
-                        i=0
-                        while os.path.exists(path.format(str(i))):
-                                i=int(i)+1
-                        else:
-                                os.mkdir(path.format(str(i)))
-                                global pathG
-                                pathG=str(path.format(str(i)))
-                        
-                        os.chdir("/home/pi/Desktop/JoelPi")
-                        os.rename(pathF,pathG)
-                        
-                        
-                        global header_list
-                        header_list =[]
-                        header_list.append(title.get())
-                        header_list.append(client.get())
-                        header_list.append(test_gas.get())
-                        header_list.append(source_gas.get())
-                        header_list.append(technician.get())
-                        header_list.append(system_flow.get())
-                        header_list.append(comments.get())
-                        header_list.append(deltaf_serial.get())
-                        header_list.append(deltaf_cal.get())
-                        header_list.append(deltaf_flow.get())
-                        header_list.append(deltaf_spec.get())
-                        header_list.append(tracer_serial.get())
-                        header_list.append(tracer_cal.get())
-                        header_list.append(tracer_flow.get())
-                        header_list.append(tracer_spec.get())
-                        with open('/home/pi/Desktop/JoelPi/Header_default.csv', 'w+',newline='') as d:
-                            writer4 = csv.writer(d)
-                            for row in header_list:
-                                writer4.writerow([row])
-                            d.close()
-                        with open(os.path.join(pathG,self.headerFileTitle)+'.csv', 'w+', newline='') as c:
-                            writer3 = csv.writer(c)
-                            writer3.writerow([title.get()])
-                            writer3.writerow([client.get()])
-                            writer3.writerow([test_gas.get()])
-                            writer3.writerow([source_gas.get()])
-                            writer3.writerow([technician.get()])
-                            writer3.writerow([system_flow.get()])
-                            writer3.writerow([comments.get()])
-                            writer3.writerow([deltaf_serial.get()])
-                            writer3.writerow([deltaf_cal.get()])
-                            writer3.writerow([deltaf_flow.get()])
-                            writer3.writerow([deltaf_spec.get()])
-                            writer3.writerow([tracer_serial.get()])
-                            writer3.writerow([tracer_cal.get()])
-                            writer3.writerow([tracer_flow.get()])
-                            writer3.writerow([tracer_spec.get()])
+                with open('/home/pi/Desktop/JoelPi/Header_default.csv', 'w+',newline='') as d:
+                    writer4 = csv.writer(d)
+                    for row in header_list:
+                        writer4.writerow([row])
+                    d.close()
+                    
+                    
+                with open(os.path.join(pathG,'Header.csv'), 'w+', newline='') as c:
+                    writer3 = csv.writer(c)
+                    writer3.writerow([title.get()])
+                    writer3.writerow([client.get()])
+                    writer3.writerow([location.get()])
+                    writer3.writerow([test_gas.get()])
+                    writer3.writerow([source_gas.get()])
+                    writer3.writerow([technician.get()])
+                    writer3.writerow([system_flow.get()])
+                    writer3.writerow([comments.get()])
+                    writer3.writerow([deltaf_serial.get()])
+                    writer3.writerow([deltaf_cal.get()])
+                    writer3.writerow([deltaf_flow.get()])
+                    writer3.writerow([deltaf_spec.get()])
+                    writer3.writerow([tracer_serial.get()])
+                    writer3.writerow([tracer_cal.get()])
+                    writer3.writerow([tracer_flow.get()])
+                    writer3.writerow([tracer_spec.get()])
+                    if start_stop == 'stop':
                             writer3.writerow([start_timee])
                             writer3.writerow([stop_time])
                             writer3.writerow([o2MeanValue])
@@ -1276,202 +1473,215 @@ class PageOne(tk.Frame):
                             writer3.writerow([h2oMeanValue])
                             writer3.writerow([h2oMaxValue])
                             writer3.writerow([h2oFinalValue])
-                            c.flush()
-                            c.close()
-                
-                button1 = tk.Button(top4, text="Back",bg="grey15",fg="grey75",font=LARGE_FONT, command=top4.destroy)
-                button1.grid(row=3,column=4)
-                
-                button1 = tk.Button(top4, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
-                button1.grid(row=4,column=4)
-                
-                with open('Header_default.csv', newline='') as t:
-                        headreader = csv.reader(t)
-                        global header_list
-                        header_list = []
-                        for row in headreader:
-                                header_list.append(row[0])
-                
-                paddx = 2
-                paddy = 2
-                
-                ####Document fields (title, client, etc)
-                # title entry
-                label3 = tk.Label(top4, text="Test Point ID:", font=SMALL_FONT)
-                label3.grid(row=2,column=1, padx=paddx,pady=paddy)
-                label3.config(bg="grey25",fg="white")
-                
-                global title
-                self.title = StringVar(top4, value=header_list[0])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.title)
-                self.textbox.grid(row=3,column=1, padx=paddx,pady=paddy)
-                title = self.title
-                
-                # client entry
-                label4 = tk.Label(top4, text="Client:", font=SMALL_FONT)
-                label4.grid(row=4,column=1, padx=paddx,pady=paddy)
-                label4.config(bg="grey25",fg="white")
-                
-                global client
-                self.client = StringVar(top4, value=header_list[1])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.client)
-                self.textbox.grid(row=5,column=1, padx=paddx,pady=paddy)
-                client = self.client
-                
-                # test gas entry
-                label5 = tk.Label(top4, text="Test Gas:", font=SMALL_FONT)
-                label5.grid(row=6,column=1, padx=paddx,pady=paddy)
-                label5.config(bg="grey25",fg="white")
-                
-                global test_gas
-                self.test_gas = StringVar(top4, value=header_list[2])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.test_gas)
-                self.textbox.grid(row=7,column=1, padx=paddx,pady=paddy)
-                test_gas = self.test_gas
-                
-                # source gas entry
-                label6 = tk.Label(top4, text="Source Gas:", font=SMALL_FONT)
-                label6.grid(row=8,column=1, padx=paddx,pady=paddy)
-                label6.config(bg="grey25",fg="white")
-                
-                global source_gas
-                self.source_gas = StringVar(top4, value=header_list[3])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.source_gas)
-                self.textbox.grid(row=9,column=1, padx=paddx,pady=paddy)
-                source_gas = self.source_gas
-                
-                # technician entry
-                label7 = tk.Label(top4, text="Technician:", font=SMALL_FONT)
-                label7.grid(row=10,column=1, padx=paddx,pady=paddy)
-                label7.config(bg="grey25",fg="white")
-                
-                global technician
-                self.technician = StringVar(top4, value=header_list[4])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.technician)
-                self.textbox.grid(row=11,column=1, padx=paddx,pady=paddy)
-                technician = self.technician
-                
-                # system flow entry
-                label8 = tk.Label(top4, text="System Flow:", font=SMALL_FONT)
-                label8.grid(row=12,column=1, padx=paddx,pady=paddy)
-                label8.config(bg="grey25",fg="white")
-                
-                global system_flow
-                self.system_flow = StringVar(top4, value=header_list[5])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.system_flow)
-                self.textbox.grid(row=13,column=1, padx=paddx,pady=paddy)
-                system_flow = self.system_flow
-                
-                #comments entry
-                label9 = tk.Label(top4, text="Comments:", font=SMALL_FONT)
-                label9.grid(row=14,column=1, padx=paddx,pady=paddy)
-                label9.config(bg="grey25",fg="white")
-                
-                global comments
-                self.comments = StringVar(top4, value=header_list[6])
-                self.textbox = ttk.Entry(top4,width=40, textvariable = self.comments)
-                self.textbox.grid(row=15,column=1, padx=paddx,pady=paddy)
-                comments = self.comments
-                
-                ### analyser info entries
-                ## delta f info entry
-                #deltaf serial number entry
-                label10 = tk.Label(top4, text="Delta F", font=LARGE_FONT)
-                label10.grid(row=2,column=2, padx=paddx,pady=paddy)
-                label10.config(bg="grey25", fg="#7fa6a3")
-                
-                label10 = tk.Label(top4, text="Instrument Serial #:", font=SMALL_FONT)
-                label10.grid(row=3,column=2, padx=paddx,pady=paddy)
-                label10.config(bg="grey25",fg="white")
-                
-                global deltaf_serial
-                self.deltaf_serial = StringVar(top4, value=header_list[7])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.deltaf_serial)
-                self.textbox.grid(row=4,column=2, padx=paddx,pady=paddy)
-                deltaf_serial = self.deltaf_serial
-                
-                #deltaf calibration date entry
-                label11 = tk.Label(top4, text="Instrument Calibration Date:", font=SMALL_FONT)
-                label11.grid(row=5,column=2, padx=paddx,pady=paddy)
-                label11.config(bg="grey25",fg="white")
-                
-                global deltaf_cal
-                self.deltaf_cal = StringVar(top4, value=header_list[8])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.deltaf_cal)
-                self.textbox.grid(row=6,column=2, padx=paddx,pady=paddy)
-                deltaf_cal = self.deltaf_cal
-                
-                #instrument flow entry
-                label12 = tk.Label(top4, text="Instrument Flow:", font=SMALL_FONT)
-                label12.grid(row=7,column=2, padx=paddx,pady=paddy)
-                label12.config(bg="grey25",fg="white")
-                
-                global deltaf_flow
-                self.deltaf_flow = StringVar(top4, value=header_list[9])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.deltaf_flow)
-                self.textbox.grid(row=8,column=2, padx=paddx,pady=paddy)
-                deltaf_flow = self.deltaf_flow
-                
-                #instrument specification
-                label13 = tk.Label(top4, text="Specification", font=SMALL_FONT)
-                label13.grid(row=9,column=2, padx=paddx,pady=paddy)
-                label13.config(bg="grey25",fg="white")
-                
-                global deltaf_spec
-                self.deltaf_spec = StringVar(top4, value=header_list[10])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.deltaf_spec)
-                self.textbox.grid(row=10,column=2, padx=paddx,pady=paddy)
-                deltaf_spec = self.deltaf_spec
-                
-                ## tracer2 info entry
-                #tracer2 serial number entry
-                label10 = tk.Label(top4, text="Meeco Tracer2", font=LARGE_FONT)
-                label10.grid(row=2,column=3, padx=paddx,pady=paddy)
-                label10.config(bg="grey25", fg="#7fa6a3")
-                
-                label10 = tk.Label(top4, text="Instrument Serial #:", font=SMALL_FONT)
-                label10.grid(row=3,column=3, padx=paddx,pady=paddy)
-                label10.config(bg="grey25",fg="white")
-                
-                global tracer_serial
-                self.tracer_serial = StringVar(top4, value=header_list[11])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.tracer_serial)
-                self.textbox.grid(row=4,column=3, padx=paddx,pady=paddy)
-                tracer_serial = self.tracer_serial
-                
-                #tracer2 calibration date entry
-                label11 = tk.Label(top4, text="Instrument Calibration Date:", font=SMALL_FONT)
-                label11.grid(row=5,column=3, padx=paddx,pady=paddy)
-                label11.config(bg="grey25",fg="white")
-                
-                global tracer_cal
-                self.tracer_cal = StringVar(top4, value=header_list[12])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.tracer_cal)
-                self.textbox.grid(row=6,column=3, padx=paddx,pady=paddy)
-                tracer_cal = self.tracer_cal
-                
-                #instrument flow entry
-                label12 = tk.Label(top4, text="Instrument Flow:", font=SMALL_FONT)
-                label12.grid(row=7,column=3, padx=paddx,pady=paddy)
-                label12.config(bg="grey25",fg="white")
-                
-                global tracer_flow
-                self.tracer_flow = StringVar(top4, value=header_list[13])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.tracer_flow)
-                self.textbox.grid(row=8,column=3, padx=paddx,pady=paddy)
-                tracer_flow = self.tracer_flow
-                
-                #instrument specification
-                label13 = tk.Label(top4, text="Specification", font=SMALL_FONT)
-                label13.grid(row=9,column=3, padx=paddx,pady=paddy)
-                label13.config(bg="grey25",fg="white")
-                
-                global tracer_spec
-                self.tracer_spec = StringVar(top4, value=header_list[14])
-                self.textbox = ttk.Entry(top4,width=20, textvariable = self.tracer_spec)
-                self.textbox.grid(row=10,column=3, padx=paddx,pady=paddy)
-                tracer_spec = self.tracer_spec
-                
+                    c.flush()
+                    c.close()
+        
+        button1 = tk.Button(top4, text="Back",bg="grey15",fg="grey75",font=LARGE_FONT, command=top4.destroy)
+        button1.grid(row=3,column=4)
+        
+        button1 = tk.Button(top4, text="Update Fields",bg="grey15",fg="grey75",font=LARGE_FONT, command=update_fields)
+        button1.grid(row=4,column=4)
+        
+        with open('Header_default.csv', newline='') as t:
+                headreader = csv.reader(t)
+                global header_list
+                header_list = []
+                for row in headreader:
+                        header_list.append(row[0])
+        
+        paddx = 2
+        paddy = 2
+        
+        ####Document fields (title, client, etc)
+        # title entry
+        label3 = tk.Label(top4, text="Test Point ID:", font=SMALL_FONT)
+        label3.grid(row=2,column=1, padx=paddx,pady=paddy)
+        label3.config(bg="grey25",fg="white")
+        
+        global title
+        top4.title = StringVar(top4, value=header_list[0])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.title)
+        top4.textbox.grid(row=3,column=1, padx=paddx,pady=paddy)
+        title = top4.title
+        
+        # client entry
+        label4 = tk.Label(top4, text="Client:", font=SMALL_FONT)
+        label4.grid(row=4,column=1, padx=paddx,pady=paddy)
+        label4.config(bg="grey25",fg="white")
+        
+        global client
+        top4.client = StringVar(top4, value=header_list[1])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.client)
+        top4.textbox.grid(row=5,column=1, padx=paddx,pady=paddy)
+        client = top4.client
+        
+        # client entry
+        label4 = tk.Label(top4, text="Location:", font=SMALL_FONT)
+        label4.grid(row=4,column=1, padx=paddx,pady=paddy)
+        label4.config(bg="grey25",fg="white")
+        
+        global location
+        top4.location = StringVar(top4, value=header_list[2])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.location)
+        top4.textbox.grid(row=5,column=1, padx=paddx,pady=paddy)
+        location = top4.location
+        
+        # test gas entry
+        label5 = tk.Label(top4, text="Test Gas:", font=SMALL_FONT)
+        label5.grid(row=6,column=1, padx=paddx,pady=paddy)
+        label5.config(bg="grey25",fg="white")
+        
+        global test_gas
+        top4.test_gas = StringVar(top4, value=header_list[3])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.test_gas)
+        top4.textbox.grid(row=7,column=1, padx=paddx,pady=paddy)
+        test_gas = top4.test_gas
+        
+        # source gas entry
+        label6 = tk.Label(top4, text="Source Gas:", font=SMALL_FONT)
+        label6.grid(row=8,column=1, padx=paddx,pady=paddy)
+        label6.config(bg="grey25",fg="white")
+        
+        global source_gas
+        top4.source_gas = StringVar(top4, value=header_list[4])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.source_gas)
+        top4.textbox.grid(row=9,column=1, padx=paddx,pady=paddy)
+        source_gas = top4.source_gas
+        
+        # technician entry
+        label7 = tk.Label(top4, text="Technician:", font=SMALL_FONT)
+        label7.grid(row=10,column=1, padx=paddx,pady=paddy)
+        label7.config(bg="grey25",fg="white")
+        
+        global technician
+        top4.technician = StringVar(top4, value=header_list[5])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.technician)
+        top4.textbox.grid(row=11,column=1, padx=paddx,pady=paddy)
+        technician = top4.technician
+        
+        # system flow entry
+        label8 = tk.Label(top4, text="System Flow:", font=SMALL_FONT)
+        label8.grid(row=12,column=1, padx=paddx,pady=paddy)
+        label8.config(bg="grey25",fg="white")
+        
+        global system_flow
+        top4.system_flow = StringVar(top4, value=header_list[6])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.system_flow)
+        top4.textbox.grid(row=13,column=1, padx=paddx,pady=paddy)
+        system_flow = top4.system_flow
+        
+        #comments entry
+        label9 = tk.Label(top4, text="Comments:", font=SMALL_FONT)
+        label9.grid(row=14,column=1, padx=paddx,pady=paddy)
+        label9.config(bg="grey25",fg="white")
+        
+        global comments
+        top4.comments = StringVar(top4, value=header_list[7])
+        top4.textbox = ttk.Entry(top4,width=40, textvariable = top4.comments)
+        top4.textbox.grid(row=15,column=1, padx=paddx,pady=paddy)
+        comments = top4.comments
+        
+        ### analyser info entries
+        ## delta f info entry
+        #deltaf serial number entry
+        label10 = tk.Label(top4, text="Delta F", font=LARGE_FONT)
+        label10.grid(row=2,column=2, padx=paddx,pady=paddy)
+        label10.config(bg="grey25", fg="#7fa6a3")
+        
+        label10 = tk.Label(top4, text="Instrument Serial #:", font=SMALL_FONT)
+        label10.grid(row=3,column=2, padx=paddx,pady=paddy)
+        label10.config(bg="grey25",fg="white")
+        
+        global deltaf_serial
+        top4.deltaf_serial = StringVar(top4, value=header_list[8])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.deltaf_serial)
+        top4.textbox.grid(row=4,column=2, padx=paddx,pady=paddy)
+        deltaf_serial = top4.deltaf_serial
+        
+        #deltaf calibration date entry
+        label11 = tk.Label(top4, text="Instrument Calibration Date:", font=SMALL_FONT)
+        label11.grid(row=5,column=2, padx=paddx,pady=paddy)
+        label11.config(bg="grey25",fg="white")
+        
+        global deltaf_cal
+        top4.deltaf_cal = StringVar(top4, value=header_list[9])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.deltaf_cal)
+        top4.textbox.grid(row=6,column=2, padx=paddx,pady=paddy)
+        deltaf_cal = top4.deltaf_cal
+        
+        #instrument flow entry
+        label12 = tk.Label(top4, text="Instrument Flow:", font=SMALL_FONT)
+        label12.grid(row=7,column=2, padx=paddx,pady=paddy)
+        label12.config(bg="grey25",fg="white")
+        
+        global deltaf_flow
+        top4.deltaf_flow = StringVar(top4, value=header_list[10])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.deltaf_flow)
+        top4.textbox.grid(row=8,column=2, padx=paddx,pady=paddy)
+        deltaf_flow = top4.deltaf_flow
+        
+        #instrument specification
+        label13 = tk.Label(top4, text="Specification", font=SMALL_FONT)
+        label13.grid(row=9,column=2, padx=paddx,pady=paddy)
+        label13.config(bg="grey25",fg="white")
+        
+        global deltaf_spec
+        top4.deltaf_spec = StringVar(top4, value=header_list[11])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.deltaf_spec)
+        top4.textbox.grid(row=10,column=2, padx=paddx,pady=paddy)
+        deltaf_spec = top4.deltaf_spec
+        
+        ## tracer2 info entry
+        #tracer2 serial number entry
+        label10 = tk.Label(top4, text="Meeco Tracer2", font=LARGE_FONT)
+        label10.grid(row=2,column=3, padx=paddx,pady=paddy)
+        label10.config(bg="grey25", fg="#7fa6a3")
+        
+        label10 = tk.Label(top4, text="Instrument Serial #:", font=SMALL_FONT)
+        label10.grid(row=3,column=3, padx=paddx,pady=paddy)
+        label10.config(bg="grey25",fg="white")
+        
+        global tracer_serial
+        top4.tracer_serial = StringVar(top4, value=header_list[12])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.tracer_serial)
+        top4.textbox.grid(row=4,column=3, padx=paddx,pady=paddy)
+        tracer_serial = top4.tracer_serial
+        
+        #tracer2 calibration date entry
+        label11 = tk.Label(top4, text="Instrument Calibration Date:", font=SMALL_FONT)
+        label11.grid(row=5,column=3, padx=paddx,pady=paddy)
+        label11.config(bg="grey25",fg="white")
+        
+        global tracer_cal
+        top4.tracer_cal = StringVar(top4, value=header_list[13])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.tracer_cal)
+        top4.textbox.grid(row=6,column=3, padx=paddx,pady=paddy)
+        tracer_cal = top4.tracer_cal
+        
+        #instrument flow entry
+        label12 = tk.Label(top4, text="Instrument Flow:", font=SMALL_FONT)
+        label12.grid(row=7,column=3, padx=paddx,pady=paddy)
+        label12.config(bg="grey25",fg="white")
+        
+        global tracer_flow
+        top4.tracer_flow = StringVar(top4, value=header_list[14])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.tracer_flow)
+        top4.textbox.grid(row=8,column=3, padx=paddx,pady=paddy)
+        tracer_flow = top4.tracer_flow
+        
+        #instrument specification
+        label13 = tk.Label(top4, text="Specification", font=SMALL_FONT)
+        label13.grid(row=9,column=3, padx=paddx,pady=paddy)
+        label13.config(bg="grey25",fg="white")
+        
+        global tracer_spec
+        top4.tracer_spec = StringVar(top4, value=header_list[15])
+        top4.textbox = ttk.Entry(top4,width=20, textvariable = top4.tracer_spec)
+        top4.textbox.grid(row=10,column=3, padx=paddx,pady=paddy)
+        tracer_spec = top4.tracer_spec
+        
+        
+        if start_stop == 'stop':
                 #Mean Moisture Value
                 label13 = tk.Label(top4, text="Moisture Mean Value:", font=SMALL_FONT)
                 label13.grid(row=13,column=2, padx=paddx,pady=paddy)
@@ -1519,34 +1729,37 @@ class PageOne(tk.Frame):
                 
                 label14 = tk.Label(top4,textvariable=o2FinalValueVar, width=20,bg="grey35",fg="white", font=SMALL_FONT)
                 label14.grid(row=18, column=3, padx=paddx,pady=paddy)
-        confirm_fields()
+        
             
             
-    def animateo2(self):   #### animation function. despite the name it actually animates both o2 and h2o. 
-                                #  it also functions to save csv files if the variable 'recording' is set to TRUE
+def animateo2(i):   #### animation function. despite the name it actually animates both o2 and h2o. 
+                        #  it also functions to save csv files if the variable 'recording' is set to TRUE
         global currentMode
         currentMode=StringVar()
-        meecoMode = int(write_serial_int(False,0))
+        #meecoMode = int(write_serial_int(False,0))                                      #### comment out for random data###
+        meecoMode = 0
         if meecoMode == 1:
                 currentMode.set('Inert')
         if meecoMode == 0:
                 currentMode.set('Service')
-        
+
         global currentUpper
         global currentLower
         currentUpper=StringVar()
         currentLower=StringVar()
-        currentUpper.set(round(float(raw_to_ppb(read_serial_float(15))),2))
-        currentLower.set(round(float(raw_to_ppb(read_serial_float(16))),2))
+        #currentUpper.set(round(float(raw_to_ppb(read_serial_float(15))),2))        #### comment out for random data###
+        #currentLower.set(round(float(raw_to_ppb(read_serial_float(16))),2))        #### comment out for random data###
+        currentUpper.set(random.random())
+        currentLower.set(random.random())
         
-        
-        
+
         #### data gathering for o2 graph
         global o2IsWorking
         if o2IsWorking == False:
                 for x in range(2):
                         try:
-                                o2 = get_O2()
+                                #o2 = get_O2()                                      #### comment out for random data###
+                                o2 = random.random()*100
                                 o2 = round(float(o2),2)
                                 o2IsWorking = True
                                 break
@@ -1557,7 +1770,8 @@ class PageOne(tk.Frame):
         if o2IsWorking == True:
                 for x in range(5):
                         try:
-                                o2 = get_O2()
+                                #o2 = get_O2()                                      #### comment out for random data###
+                                o2 = random.random()*100
                                 o2 = round(float(o2),2)
                                 o2IsWorking = True
                                 break
@@ -1567,10 +1781,10 @@ class PageOne(tk.Frame):
                                 o2IsWorking = False
                 
         currento2.set(o2)
-        if o2IsWorking==True:
-                print('o2 is working')
-        if o2IsWorking==False:
-                print('o2 is fucked')
+        #if o2IsWorking==True:
+        #        print('o2 is working')
+        #if o2IsWorking==False:
+        #        print('o2 is fucked')
         try:
                 if o2data_max<o2:
                         o2data_max = o2
@@ -1587,12 +1801,14 @@ class PageOne(tk.Frame):
         global o2_dataList
         global o2dataList
         o2_dataList = o2_dataList + '\n' + str(round((o2time.total_seconds())/60,2))+ ',' + str(o2)
-        o2dataList = o2_dataList.split('\n')
         
+        o2dataList = o2_dataList.split('\n')
+        #print(o2_dataList)
         o2dataList.pop(0)
-        initial_tick = o2dataList[0]
-        o2dataList[0] = "0"+initial_tick[4:]
-        #print(o2dataList[0])
+        initial_tick = o2dataList[0].split(',')
+        #print(initial_tick[1])
+        o2dataList[0] = "0,"+initial_tick[1]
+        #print(o2dataList)
         o2xList = []
         o2yList = []
         global x1
@@ -1603,13 +1819,14 @@ class PageOne(tk.Frame):
                 o2xList.append(float(x1))
                 o2yList.append(float(y1))
         #o2xList[0] = 0
-        
+
         #### data gathering for h2o graph
         global h2oIsWorking
         if h2oIsWorking == False:
                 for x in range(2):
                         try:
-                                h2o = raw_to_ppb(get_h20())
+                                #h2o = raw_to_ppb(get_h20())                                      #### comment out for random data###
+                                h2o = random.random()*100
                                 h2o = round(float(h2o),2)
                                 h2oIsWorking=True
                                 break
@@ -1620,7 +1837,8 @@ class PageOne(tk.Frame):
         if h2oIsWorking == True:
                 for x in range(5):
                         try:
-                                h2o = raw_to_ppb(get_h20())
+                                #h2o = raw_to_ppb(get_h20())                                      #### comment out for random data###
+                                h2o = random.random()*100
                                 h2o = round(float(h2o),2)
                                 h2oIsWorking = True
                                 break
@@ -1632,31 +1850,25 @@ class PageOne(tk.Frame):
         if h2o<0:
                 h2o=0
         currenth2o.set(h2o)
-        if h2oIsWorking==True:
-                print('h2o is working')
-        if h2oIsWorking==False:
-                print('h2o is fucked')        
-                
-        try:
-                if h2odata_max<h2o:
-                        h2odata_max = h2o
-                if h2odata_min>h2o:
-                        h2odata_min = h2o
-        except:
-                h2odata_max = 0
-                h2odata_min = 0
-                if h2odata_max<h2o:
-                        h2odata_max = h2o
-                if h2odata_min>h2o:
-                        h2odata_min = h2o
+        #if h2oIsWorking==True:
+        #        print('h2o is working')
+        #if h2oIsWorking==False:
+        #        print('h2o is fucked')
+        global h2odata_max
+        global h2odata_min
+        if h2odata_max<h2o:
+                h2odata_max = h2o
+        if h2odata_min>h2o:
+                h2odata_min = h2o
         h2otime = datetime.now()-start_time
         global h2o_dataList
         global h2odataList
         h2o_dataList = h2o_dataList + '\n' + str(round((h2otime.total_seconds())/60,2))+ ',' + str(h2o)
         h2odataList = h2o_dataList.split('\n')
         h2odataList.pop(0)
-        initial_h2otick = h2odataList[0]
-        h2odataList[0] = "0"+initial_h2otick[4:]
+        initial_h2otick = h2odataList[0].split(',')
+        #print(initial_h2otick[1])
+        h2odataList[0] = "0,"+initial_h2otick[1]
         h2oxList = []
         h2oyList = []
         global x2
@@ -1666,7 +1878,7 @@ class PageOne(tk.Frame):
                 x2, y2 = eachLine.split(',')
                 h2oxList.append(float(x2))
                 h2oyList.append(float(y2))
-        
+
         ###active graphing
         a1.clear()
         a1.ticklabel_format(useOffset=False)
@@ -1680,7 +1892,8 @@ class PageOne(tk.Frame):
                 a1.set_xlabel('Time (minutes)')
                 a1.set_ylabel('Oxygen (PPB)')
         if var2.get() == 'radBoth':
-                a1.set_ylim(min((0, o2data_min+o2data_min*0.1, h2odata_min+h2odata_min*0.1)), max((10, o2data_max+o2data_max*0.1, h2odata_max+h2odata_max*0.1)))
+                #print('radBoth')
+                a1.set_ylim(min((0, o2data_min*1.1, h2odata_min*1.1)), max((10, o2data_max*1.1, h2odata_max*1.1)))
                 a1.plot(o2xList,o2yList,'#60D500')
                 a1.plot(h2oxList, h2oyList,'#2FA4FF')
                 if o2IsWorking ==True and h2oIsWorking ==True:
@@ -1691,6 +1904,7 @@ class PageOne(tk.Frame):
                         a1.set_title("Check Meeco Connection")
                 a1.set_xlabel("Time (minutes)")
                 a1.set_ylabel("PPB")
+                
         if var2.get() == 'radH2O':
                 a1.set_ylim(min((0, h2odata_min+h2odata_min*0.1)), max((10, h2odata_max+h2odata_max*0.1)))
                 a1.plot(h2oxList, h2oyList,'#2FA4FF')
@@ -1701,8 +1915,22 @@ class PageOne(tk.Frame):
                 a1.set_xlabel('Time (minutes)')
                 a1.set_ylabel('Moisture (PPB)')
         
-        o2fileTitle = "O2"
         
+        f1.savefig('graph.png')
+        basewidth = 775
+        imgg = Image.open('graph.png')
+        wpercent = (basewidth/float(imgg.size[0]))
+        hsize = int((float(imgg.size[1])*float(wpercent)*0.8))
+        imgg = imgg.resize((basewidth,hsize), Image.ANTIALIAS)
+        imgg.save('graph.png')
+        img2 = ImageTk.PhotoImage(Image.open('graph.png'))
+        img.configure(image=img2)
+        img.image = img2
+        
+        
+        
+        o2fileTitle = "O2"
+
         if recording == True:
             global o2Valuelist
             o2Valuelist = []
@@ -1718,8 +1946,8 @@ class PageOne(tk.Frame):
 
 
         h2ofileTitle = "H2O"
-        
-        
+
+
         if recording == True:
             global h2oValuelist
             h2oValuelist = []
@@ -1731,407 +1959,1026 @@ class PageOne(tk.Frame):
                         h2oValuelist.append(float(everyLine[1]))
                 
                 h.flush()
-   
 
 
+
+
+
+def manage_pdf():
+        # Find and print the current working directory
+        os.getcwd()
+        print(os.getcwd())
+
+        # Filepath for Windows testing 
+        #os.chdir("//Mac/Home/Downloads") #-------(CHANGE THIS TO WORK WITH THE CURRENT COMPUTER)
+        #print(os.getcwd())
+
+        # Filepath for Mac testing 
+        #os.chdir("/Users/Work/Downloads") #-------(CHANGE THIS TO WORK WITH THE CURRENT COMPUTER)
+        #print(os.getcwd())
         
+        # Filepath for Pi (Linux) testing 
+        os.chdir("/home/pi/Desktop/JoelPi") #-------(CHANGE THIS TO WORK WITH THE CURRENT COMPUTER)
+        print(os.getcwd())
 
-class PageTwo(tk.Frame):
-    
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        
-        self.configure(background="grey25")
-        
-        Label(self, text="Select the H2O CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="Grey50", justify="right").place(x=69,y=108)
-        Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="Grey25", state="disabled").place(height=50, width=125, x=450, y=102)
-        Label(self, text="Select the O2 CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="Grey50", justify="right").place(x=75,y=188)
-        Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="Grey25", state="disabled").place(height=50, width=125, x=450, y=185)
-        button1 = tk.Button(self, text="Back",bg="grey15",fg="grey85",width=20, command=lambda: controller.show_frame(StartPage))
-        button1.place(height = 50, width=125, x=800, y=102)
+        global TestingIncValue
+        TestingIncValue = 1    #-------(THIS CONTROLS HOW OFTEN DATA IS COLLECTED AND PLOTTED)
 
-        # Note for the user to ensure proper input
-        Label(self, text='NOTE: You must add ".pdf" to the end of your saved filename.', font=("Century Gothic",10, "italic"), bg="Grey25", fg="Orange", width=75, justify="center").place(x=0,y=375)
+        def openCSV():
+            global H2Ocsv
+            global O2csv
+            global headercsv
+            global folder
+            H2Ocsv = None
+            O2csv = None
+            headercsv = None
+            folder = None
+            otherfiles = []
+            folder = filedialog.askdirectory()
+            print(folder)
+            os.chdir(folder)
+            try:
+                for file in os.listdir(folder):
+                    try:
+                        if file.startswith("H2O") and file.endswith(".csv"):
+                            H2Ocsv = file
+                            print("H2O file found")
+                            
+                        elif file.startswith("O2") and file.endswith(".csv"):
+                            O2csv = file
+                            print("O2 file found")
 
-        # Generate PDF default/greyed out
-        Button(self, text="Generate PDF", bg="Grey50", fg="White", font=("Century Gothic", 17, "bold"), state="disabled").place(height=75, width=450, x=75, y=277)
-        
-        global var1
-        var1 = StringVar()
+                        elif file.startswith("Header") and file.endswith(".csv"):
+                            headercsv = file
+                            print("Header file found")
+                            
+                        else:
+                            otherfiles.append(file)
+                            otherfiles.clear()
+                    except Exception as e:
+                        raise e
+            except FileNotFoundError as fnfe:
+                raise fnfe
 
-        global img1
-        img1 = PhotoImage(file="Letterhead_Logo.gif")
-        
-        
+            global top 
+            top=Toplevel()
+            # Width and height for the Tk root window
+            w = 1030
+            h = 720
+            # This gets the current screen width and height
+            ws = top.winfo_screenwidth()
+            hs = top.winfo_screenheight()
+            # Calculate the x and y coordinates based on the current screen size
+            sx = (ws/2) - (w/2)
+            sy = (hs/2) - (h/2)
+            # Open the root window in the middle of the screen
+            top.geometry('%dx%d+%d+%d' % (w, h, sx, sy))
+            top.resizable(False,False)
+            top.config(bg="Grey25")
+            global ff1
+            global ff2
+            ff1 = Figure(figsize=(5,6), dpi=100, facecolor=(0.40,0.51,0.46))
+            ff2 = Figure(figsize=(5,6), dpi=100, facecolor=(0.40,0.51,0.46))
+            a1 = ff1.add_subplot(211,facecolor=(0.25,0.25,0.25))
+            a2 = ff2.add_subplot(211,facecolor=(0.25,0.25,0.25))
+            a1new = ff1.add_subplot(212,facecolor=(0.25,0.25,0.25))
+            a2new = ff2.add_subplot(212,facecolor=(0.25,0.25,0.25))
+            
+            # These are for setting the x value to 0 and incrementing by the predetermined value
+            x0h = []
+            x0o = []
 
-        def buttonClick():
-            print("Success!!")
+            # These are standard lists that hold the values from the CSV files
+            x1 = []
+            x2 = []    
+            y1 = []
+            y2 = []
+            global headerdata
+            headerdata = []
 
-        def h2oinfo():
-            print("H2O info selected")
-            Label(top1, text="The information file has been attached!", font=('Century Gothic',17), fg="green2", bg="grey25").place(x=575,y=310)
+            # No CSV files found
+            if H2Ocsv is None and O2csv is None:
+                print("No H2O or O2 CSV file found.")
+                tk.Button(top, text="OK", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",50,"bold"), command=BackToSelect).place(height=150,width=880,x=75,y=495)
+                tk.Label(top, text="Selection Error:", fg="#d73a3a", bg="Grey25", font=("Century Gothic",85, "bold"), justify="center", wraplength=900).place(x=90,y=75)
+                tk.Label(top, text="The folder you selected does not contain an O2 or H2O CSV file.", fg="white", bg="Grey25", font=("Century Gothic",40, "bold"), justify="center", wraplength=850).place(x=95,y=270)
 
-        def o2info():
-            print("O2 info selected")
-            Label(top2, text="The information file has been attached!", font=('Century Gothic',17), fg="green2", bg="grey25").place(x=575,y=310)
 
-        def h2o_selected():
-            print(var1.get())
-            Label(self, text="Select the H2O CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="DeepSkyBlue", justify="right").place(x=69,y=108)
-            Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="white", command=open1).place(height=50, width=125, x=450, y=102)
-            Label(self, text="Select the O2 CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="Grey50", justify="right").place(x=75,y=188)
-            Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="Grey25", state="disabled").place(height=50, width=125, x=450, y=185)
-
-        def o2_selected():
-            print(var1.get())
-            Label(self, text="Select the O2 CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="SpringGreen3", justify="right").place(x=75,y=188)
-            Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="white", command=open2).place(height=50, width=125, x=450, y=185)
-            Label(self, text="Select the H2O CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="Grey50", justify="right").place(x=69,y=108)
-            Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="Grey25", state="disabled").place(height=50, width=125, x=450, y=102)
-
-        def both_selected():
-            print(var1.get())
-            Label(self, text="Select the H2O CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="DeepSkyBlue", justify="right").place(x=69,y=108)
-            Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="white", command=open1).place(height=50, width=125, x=450, y=102)
-            Label(self, text="Select the O2 CSV file:", font=("Century Gothic",20,"bold"), bg="Grey25", fg="SpringGreen3", justify="right").place(x=75,y=188)
-            Button(self, text="Open", font=("Century Gothic",17,"bold"), bg="Grey50", fg="white", command=open2).place(height=50, width=125, x=450, y=185)
-
-        s1 = ttk.Style()
-        s1.configure("h2o.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="#00BFFF")
-        s1.configure("o2.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="#00CD66")
-        s1.configure("both.TRadiobutton", font=('Century Gothic',17,'bold'), background="#404040", foreground="Orange")
-
-        # Radiobuttons
-        rad_h2o = ttk.Radiobutton(self, text="H2O", style="h2o.TRadiobutton", variable=var1, value="radH2O", command=h2o_selected).place(x=105, y=35)
-        rad_o2 = ttk.Radiobutton(self, text="O2", style="o2.TRadiobutton", variable=var1, value="radO2", command=o2_selected).place(x=270, y=35)
-        rad_both = ttk.Radiobutton(self, text="Both", style="both.TRadiobutton", variable=var1, value="radBoth", command=both_selected).place(x=420, y=35)
-
-        ####### FILEPATH FUNCTIONS #######
-        # This prompts the user to open the first CSV or TXT file
-        def open1():
-            global filepath1
-            filepath1 = filedialog.askopenfilename(initialdir="/Desktop", title="Select a file", filetypes=(("csv files","*.csv"),("txt files","*.txt")))
-            print(filepath1)
-            if filepath1:
-                global top1
-                top1=Toplevel()
-                top1.geometry("1040x520")
-                top1.resizable(False,False)
-                top1.config(bg="Grey25")
-                filepath1a = filepath1.replace('H2O','Header')
-                global ff1
-                global aa1
-                global xx1
-                global yy1
-                ff1 = Figure(figsize=(5,5), dpi=100)
-                aa1 = ff1.add_subplot(111)
-                xx1 = []
-                yy1 = []
-                global H2odata_min
-                global H2odata_max
-                H2odata_min = 0
-                H2odata_max = 0
-                with open(filepath1a, newline ='') as hcsvfile:
-                        hheader = csv.reader(hcsvfile)
-                        global hheaderlist
-                        hheaderlist = []
-                        for row in hheader:
-                                hheaderlist.append(row[0])
-                with open(filepath1, newline = '') as csvfile:
-                    plots= csv.reader(csvfile, delimiter=',')
+            # ------------------------------------------------------------------------------ #
+            #                               O2 GRAPH ONLY                                    #
+            # ------------------------------------------------------------------------------ #
+            elif H2Ocsv is None:
+                print("H2O file NOT found")
+                global o2Path
+                o2Path = os.path.join(folder,O2csv)
+                # Using the O2 path, transfer data from O2csv file into corresponding lists
+                with open(o2Path) as csvO2:
+                    plots = csv.reader(csvO2, delimiter=',')
                     for row in plots:
-                        xx1.append(float(row[0]))
-                        yy1.append(float(row[1]))
-                        if float(row[1]) < H2odata_min:
-                                H2odata_min = float(row[1])
-                        if float(row[1]) > H2odata_max:
-                                H2odata_max = float(row[1])
-                aa1.ticklabel_format(useOffset=False)        
-                aa1.set_ylim(min((0, H2odata_min+H2odata_min*0.1)), max((10, H2odata_max+H2odata_max*0.1)))
-                aa1.set_title("Moisture (ppb) over Time (minutes)")
-                aa1.set_xlabel('Time (minutes)')
-                aa1.set_ylabel('Moisture (ppb)')
-                aa1.plot(xx1, yy1, color='blue', marker='o')
-                aa1.grid(True)
-
-                global h2oMeanvalue
-                h2oMeanvalue = str(round(mean(yy1),2))
-                global h2oMaxvalue
-                h2oMaxvalue = str(round(max(yy1),2))
-                global h2oFinalvalue
-                h2oFinalvalue = str(round(yy1[-1],2))
-
-
-
-                canvas = FigureCanvasTkAgg(ff1, master=top1)
-                canvas.get_tk_widget().place(x=10,y=10)
-                ff1.savefig('h2opdfplt.png', bbox_inches='tight')
-                def confirmH2O():
-                    print("H2O Comfirmed!")
-                    if var1.get() == "radH2O":
-                        print("Export H2O only")
-                        Label(self, text="Done!", font=('Century Gothic',10,'bold'), fg="green2", bg="Grey25").place(x=580, y=114)
-                        Button(self, text="Generate PDF", bg="IndianRed", fg="White", font=("Century Gothic", 17, "bold"), command=exportH2O).place(height=75, width=450, x=75, y=277)
-                    else:
-                        print("Export Both")
-                        Label(self, text="Done!", font=('Century Gothic',10,'bold'), fg="green2", bg="Grey25").place(x=580, y=114)
-                        Button(self, text="Generate PDF", bg="IndianRed", fg="White", font=("Century Gothic", 17, "bold"), command=exportBoth).place(height=75, width=450, x=75, y=277)
-                    top1.destroy()
-
-                def cancelH2O():
-                    print("H2O Cancelled.")
-                    Label(self, text="Done!", font=('Century Gothic',10,'bold'), fg="Grey25", bg="Grey25").place(x=580, y=114)
-                    Button(self, text="Generate PDF", bg="Grey50", fg="White", font=("Century Gothic", 17, "bold"), state="disabled").place(height=75, width=450, x=75, y=277)
-                    top1.destroy()
-
-                Button(top1, text="Cancel", fg="white", bg="IndianRed", font=('Century Gothic',17,'bold'), command=cancelH2O).place(height=100, width=250, x=520, y=410)
-                Button(top1, text="Confirm", fg="white", bg="SpringGreen3", font=('Century Gothic',17,'bold'), command=confirmH2O).place(height=100, width=250, x=780, y=410)
-                Label(top1, text="Ensure that you selected the correct file by checking the file path, below:", fg="Orange", bg="Grey25", font=("Century Gothic",10, "bold"), justify="center").place(x=540, y=10)
-                Label(top1, text=filepath1, fg="Grey85", bg="Grey25", width=66, justify="center", wraplength=500).place(x=540, y=30)
-                Label(top1, text="Attach the H2O information file:", fg="White", bg="Grey25", font=("Century Gothic",20,"bold"), wraplength="300").place(x=555, y=180)
-                Button(top1, text="Open", fg="white", bg="Grey50", font=('Century Gothic',17,'bold'), command=h2oinfo).place(width=170, height=75, x=820, y=175)
-                Label(top2, text="Average:", fg="white",bg="grey25",font=SMALL_FONT).place(x=520,y=300)
-                Label(top2, text=h2oMeanvalue, fg="white",bg="grey15",font=SMALL_FONT).place(x=580,y=300, width=40)
-                Label(top2, text="Maximum:", fg="white",bg="grey25",font=SMALL_FONT).place(x=520, y=320)
-                Label(top2, text=h2oMaxvalue, fg="white",bg="grey15",font=SMALL_FONT).place(x=580, y=320, width=40)
-                Label(top2, text="Final:", fg="white",bg="grey25",font=SMALL_FONT).place(x=520, y=340)
-                Label(top2, text=h2oFinalvalue, fg="white",bg="grey15",font=SMALL_FONT).place(x=580, y=340, width=40)
-
-            # This clears the error that would orccur if the user clicked cancel
-            else:
-                print("Nothing Selected.")
-
-        # This prompts the user to open the second CSV or TXT file
-        def open2():
-            global filepath2
-            filepath2 = filedialog.askopenfilename(initialdir="/Desktop", title="Select a file", filetypes=(("csv files","*.csv"),("txt files","*.txt")))
-            if filepath2:
-                global top2
-                top2=Toplevel()
-                top2.geometry("1040x520")
-                top2.resizable(False,False)
-                top2.config(bg="Grey25")
-                filepath1b = filepath2.replace('O2','Header')
-                global ff2
-                global aa2
-                global xx2
-                global yy2
-                ff2 = Figure(figsize=(5,5), dpi=100)
-                aa2 = ff2.add_subplot(111)
-                xx2 = []
-                yy2 = []
-                global O2data_min
-                global O2data_max
-                O2data_min = 0
-                O2data_max = 0
-                with open(filepath1b, newline ='') as ocsvfile:
-                        oheader = csv.reader(ocsvfile)
-                        global oheaderlist
-                        oheaderlist = []
-                        for row in oheader:
-                                oheaderlist.append(row[0])
-                with open(filepath2, newline = '') as csvfile:
-                    plots= csv.reader(csvfile)
-                    for row in plots:
-                        xx2.append(float(row[0]))
-                        yy2.append(float(row[1]))
-                        if float(row[1]) < O2data_min:
-                                O2data_min = float(row[1])
-                        if float(row[1]) > O2data_max:
-                                O2data_max = float(row[1])
-                aa2.ticklabel_format(useOffset=False)
-                aa2.set_ylim(min((0, O2data_min+O2data_min*0.1)), max((10, O2data_max+O2data_max*0.1)))
-                aa2.set_title("Oxygen (ppb) over Time (minutes)")
-                aa2.set_xlabel('Time (minutes)')
-                aa2.set_ylabel('Oxygen (ppb)')
-                aa2.plot(xx2, yy2, color='green', marker='o')
-                aa2.grid(True)
+                        x2.append(float(row[0]))
+                        y2.append(float(row[1]))
                 
-                global o2Meanvalue
-                o2Meanvalue = str(round(mean(yy2),2))
-                global o2Maxvalue
-                o2Maxvalue = str(round(max(yy2),2))
-                global o2Finalvalue
-                o2Finalvalue = str(round(yy2[-1],2))
+                #This handles the O2 header file
+                o2HeaderPath = os.path.join(folder,headercsv)
+                with open(o2HeaderPath) as csvHeaderO2:
+                    o2headernew = csv.reader(csvHeaderO2, delimiter=',')
+                    for row in o2headernew:
+                        headerdata.append(row[1])
+                    print(headerdata)
 
-                canvas = FigureCanvasTkAgg(ff2, master=top2)
-                canvas.get_tk_widget().place(x=10,y=10)
-                ff2.savefig('o2pdfplt.png', bbox_inches='tight')
-                def confirmO2():
-                    print("O2 Confirmed!")
-                    if var1.get() == "radO2":
-                        # This redirects to the exportO2 function so only the O2 file is used
-                        Label(self, text="Done!", font=('Century Gothic',10,'bold'), fg="green2", bg="Grey25").place(x=580, y=197)
-                        Button(self, text="Generate PDF", bg="IndianRed", fg="White", font=("Century Gothic", 17, "bold"), command=exportO2).place(height=75, width=450, x=75, y=277)
+                    # This is the current threshold for O2 tests
+                    O2spec = 10.00
+                    # This pulls the final (ending) value from the O2 test
+                    lastO2 = (len(y2)-1)
+                    # This checks the final value of the test and determines whether it passed or failed.
+                    if y2[lastO2] > O2spec:
+                        print("O2 Test Result: Out of Spec.")
+                        # This is used to determine the filename
+                        global FailedTest
+                        FailedTest = True
                     else:
-                        # This redirects to the exportBoth function so both can be used
-                        Label(self, text="Done!", font=('Century Gothic',10,'bold'), fg="green2", bg="Grey25").place(x=580, y=197)
-                        Button(self, text="Generate PDF", bg="IndianRed", fg="White", font=("Century Gothic", 17, "bold"), command=exportBoth).place(height=75, width=450, x=75, y=277)
-                    top2.destroy()
+                        print("O2 Test Result: Within Spec.")
+                        FailedTest = False
 
-                def cancelO2():
-                    print("Cancelled.")
-                    Button(self, text="Generate PDF", bg="Grey50", fg="White", font=("Century Gothic", 17, "bold"), state="disabled").place(height=75, width=450, x=75, y=277)
-                    Label(self, text="Done!", font=('Century Gothic',10,'bold'), fg="Grey25", bg="Grey25").place(x=580, y=197)
-                    top2.destroy()
+                if FailedTest:
+                    print("Failed Test: Unable to edit")
+                    tk.Button(top, text="OK", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",50,"bold"), command=BackToSelect).place(height=150,width=880,x=75,y=495)
+                    tk.Label(top, text="Selection Error:", fg="#d73a3a", bg="Grey25", font=("Century Gothic",85, "bold"), justify="center", wraplength=900).place(x=90,y=75)
+                    tk.Label(top, text="The folder you selected contains a failed test.", fg="white", bg="Grey25", font=("Century Gothic",45, "bold"), justify="center", wraplength=800).place(x=180,y=265)
+                else:
+                    #Creates the figure, canvas, and button
+                    f2 = plt.figure(figsize=(10.1,6), dpi=100, facecolor=(0.40,0.51,0.46))
+                    a2 = f2.add_subplot(211,facecolor=(0.25,0.25,0.25))
+                    canvas1 = FigureCanvasTkAgg(f2, master=top)
+                    canvas1.get_tk_widget().place(x=10,y=10)
+                    tk.Button(top, text="Save as PDF", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",30,"bold"), command=exportO2).place(height=90,width=500,x=520,y=620)
+                    tk.Button(top, text="Back to Select", fg="white", activeforeground="white", bg="#ff9500", activebackground="#ffab34", font=("century gothic",30,"bold"), command=BackToSelect).place(height=90,width=500,x=10,y=620)
+                    
+                    #setting the top (original) graph
+                    a2.plot(x2, y2, color='#60d500', linewidth=4)
+                    a2.grid(True)
+                    a2.set_title('Click and drag to select new O2', fontsize=25, pad=12)
+                    a2.set_xlabel('Time in minutes', color="white")
+                    a2.set_ylabel('PPB', color="white")
+                    a2.tick_params(colors='w')
+                    f2.subplots_adjust(top=.90, hspace=0.3)
+                    a2.title.set_color('w')
 
-                Button(top2, text="Cancel", fg="white", bg="IndianRed", font=('Century Gothic',17,'bold'), command=cancelO2).place(height=100, width=250, x=520, y=410)
-                Button(top2, text="Confirm", fg= "white", bg="SpringGreen3", font=('Century Gothic',17,'bold'), command=confirmO2).place(height=100, width=250, x=780, y=410)
-                Label(top2, text="Ensure that you selected the correct file by checking the file path, below:", fg="Orange", bg="Grey25", font=("Century Gothic",10, "bold"), justify="center").place(x=540, y=10)
-                Label(top2, text=filepath2, fg="Grey85", bg="Grey25", width=66, justify="center", wraplength=500).place(x=540, y=30)
-                Label(top2, text="Attach the O2 information file:", fg="White", bg="Grey25", font=("Century Gothic",20,"bold"), wraplength="300").place(x=555, y=180)
-                Button(top2, text="Open", fg="white", bg="grey25", font=('Century Gothic',17,'bold'), command=o2info).place(width=170, height=75, x=820, y=175)
-                Label(top2, text="Average:", fg="white",bg="grey25",font=SMALL_FONT).place(x=520,y=300)
-                Label(top2, text=o2Meanvalue, fg="white",bg="grey15",font=SMALL_FONT).place(x=580,y=300, width=40)
-                Label(top2, text="Maximum:", fg="white",bg="grey25",font=SMALL_FONT).place(x=520, y=320)
-                Label(top2, text=o2Maxvalue, fg="white",bg="grey15",font=SMALL_FONT).place(x=580, y=320, width=40)
-                Label(top2, text="Final:", fg="white",bg="grey25",font=SMALL_FONT).place(x=520, y=340)
-                Label(top2, text=o2Finalvalue, fg="white",bg="grey15",font=SMALL_FONT).place(x=580, y=340, width=40)
+                    #setting up bottom (edited) graph
+                    global ax2
+                    ax2 = f2.add_subplot(212,facecolor=(0.25,0.25,0.25))
+                    line2, = ax2.plot(x2, y2, color='#60d500', linewidth=4)
+                    ax2.grid(True)
+                    ax2.set_xlabel('Time in minutes', color="white")
+                    ax2.set_ylabel('PPB', color="white")
+                    ax2.tick_params(colors='w')
 
-            else:
-                print("Nothing Selected.")
+                    def onselect(xmin, xmax):
+                        indmin, indmax = np.searchsorted(x2, (xmin, xmax))
+                        indmax = min(len(x2) - 1, indmax)
+                        global O2x
+                        global O2y
+                        O2x = x2[indmin:indmax]
+                        O2y = y2[indmin:indmax]
+                        line2.set_data(O2x, O2y)
+                        ax2.set_xlim(O2x[0]-1, O2x[-1]+1)
+                        ax2.set_ylim(min(O2y)-1, max(O2y)+1)
+                        f2.canvas.draw_idle()
 
-        # This prompts the user to select where the PDF is to be saved.
-        def exportH2O():
-                savepath = filedialog.asksaveasfilename(initialdir="/Desktop", title="Save the file", filetypes=(("PDF files","*.pdf"),("all files","*.*")))
-                if savepath:
-                    # This populates the data from the CSV file into the x1 and y1 variables
-                    with open(filepath1) as csvfile:
-                        csv.reader(csvfile, delimiter=',')
-                    
-                    h2o_pdfdata = [['Test Point ID:', str(hheaderlist[0]), 'Calibration Date:', str(hheaderlist[12])],
-                    ['Client:', str(hheaderlist[1]), 'Specification:', str(hheaderlist[14])],
-                    ['Instrument Serial#:', str(hheaderlist[11]), 'Instrument Flow:', str(hheaderlist[13])],
-                    ['Test Gas:', str(hheaderlist[2]), 'Start Time:', str(hheaderlist[15])],
-                    ['Technician:', str(hheaderlist[4]), 'Stop Time:', str(hheaderlist[16])],
-                    ['Source Gas:', str(hheaderlist[3]), 'Stop Time:', str(hheaderlist[16])],
-                    ['System Flow:', str(hheaderlist[5]), 'Maximum:', h2oMaxvalue],
-                    ['Technicion:', str(hheaderlist[4]), 'Average:', h2oMeanvalue],
-                    ['Comments:', str(hheaderlist[6]), 'Final:', h2oFinalvalue]
-                    ]
-                    pdf = FPDF()
-                    pdf.set_font("Arial", size=10)
-                    pdf.add_page()
-                    pdf.image('h2opdfplt.png')
-                    
-                    col_width = pdf.w / 5.5
-                    row_height = pdf.font_size*1.8
-                    for row in h2o_pdfdata:
-                        for item in row:
-                            pdf.cell(col_width, row_height,
-                                     txt=item, border=1)
-                        pdf.ln(row_height)
-                        
-                    pdf.output(savepath)
-                    
-                    # This plots the data on a graph, using the matplotlib plt function
-                    
+                        def incremental_range(start, stop, inc):
+                            value = start
+                            while value < stop:
+                                yield value
+                                value += inc
+                        global O2xReset
+                        O2xReset = list(incremental_range(0,len(O2x),TestingIncValue))
+
+                        global o2AvgEdit
+                        o2AvgEdit = str(round(mean(O2y),2))
+                        global o2MaxEdit
+                        o2MaxEdit = str(round(max(O2y),2))
+                        global o2FinalEdit
+                        o2FinalEdit = str(round(O2y[-1],2))
+
+                        # save
+                        np.savetxt("O2.out", np.c_[O2x, O2y])
+                    # set useblit True on gtkagg for enhanced performance
+                    span = SpanSelector(a2, onselect, 'horizontal', useblit=True,
+                                        rectprops=dict(alpha=0.5, facecolor='#678176'))
+                    plt.show()
+                
+                
+
+            # ------------------------------------------------------------------------------ #
+            #                                H2O GRAPH ONLY                                  #
+            # ------------------------------------------------------------------------------ #
+            elif O2csv is None:
+                print("O2 file NOT found")
+                global h2oPath
+                h2oPath = os.path.join(folder,H2Ocsv)
+                # Using the H2O path, transfer data from H2Ocsv file into corresponding lists
+                with open(h2oPath) as csvH2O:
+                    plots = csv.reader(csvH2O, delimiter=',')
+                    for row in plots:
+                        x1.append(float(row[0]))
+                        y1.append(float(row[1]))
+                
+                #This handles the h2O header file
+                h2oHeaderPath = os.path.join(folder,headercsv)
+                with open(h2oHeaderPath) as csvHeaderH2O:
+                    h2oheadernew = csv.reader(csvHeaderH2O, delimiter=',')
+                    for row in h2oheadernew:
+                        headerdata.append(row[1])
+                    print(headerdata)
+
+                    # This is the current threshold for O2 tests
+                    H2Ospec = 10.00
+                    # This pulls the final (ending) value from the O2 test
+                    lastH2O = (len(y1)-1)
+                    # This checks the final value of the test and determines whether it passed or failed.
+                    if y1[lastH2O] > H2Ospec:
+                        print("H2O Test Result: Out of Spec.")
+                        # This is used to determine the filename
+                        FailedTest = True
+                    else:
+                        print("H2O Test Result: Within Spec.")
+                        FailedTest = False
+                if FailedTest:
+                    print("Failed Test: Unable to edit")
+                    tk.Button(top, text="OK", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",50,"bold"), command=BackToSelect).place(height=150,width=880,x=75,y=495)
+                    tk.Label(top, text="Selection Error:", fg="#d73a3a", bg="Grey25", font=("Century Gothic",85, "bold"), justify="center", wraplength=900).place(x=90,y=75)
+                    tk.Label(top, text="The folder you selected contains a failed test.", fg="white", bg="Grey25", font=("Century Gothic",45, "bold"), justify="center", wraplength=800).place(x=180,y=265)
 
                 else:
-                    print("Cancelled")
+                    #Creates the figure, canvas, and button
+                    ff1 = plt.figure(figsize=(10.1,6), dpi=100, facecolor=(0.40,0.51,0.46))
+                    a1 = ff1.add_subplot(211,facecolor=(0.25,0.25,0.25))
+                    canvas2 = FigureCanvasTkAgg(ff1, master=top)
+                    canvas2.get_tk_widget().place(x=10,y=10)
+                    tk.Button(top, text="Save as PDF", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",30,"bold"), command=exportH2O).place(height=90,width=500,x=520,y=620)
+                    tk.Button(top, text="Back to Select", fg="white", activeforeground="white", bg="#ff9500", activebackground="#ffab34", font=("century gothic",30,"bold"), command=BackToSelect).place(height=90,width=500,x=10,y=620)
+                    
+                    #setting the top (original) graph
+                    a1.plot(x1, y1, color='DodgerBlue', linewidth=4)
+                    a1.grid(True)
+                    a1.set_title('Click and drag to select new H2O', fontsize=25, pad=12)
+                    a1.set_xlabel('Time in minutes', color="white")
+                    a1.set_ylabel('PPB', color="white")
+                    a1.tick_params(colors='w')
+                    ff1.subplots_adjust(top=.90, hspace=0.3)
+                    a1.title.set_color('w')
+
+                    #setting up bottom (edited) graph
+                    ax1 = ff1.add_subplot(212,facecolor=(0.25,0.25,0.25))
+                    line1, = ax1.plot(x1, y1, color='DodgerBlue',linewidth=4)
+                    ax1.grid(True)
+                    ax1.set_xlabel('Time in minutes', color="white")
+                    ax1.set_ylabel('PPB', color="white")
+                    ax1.tick_params(colors='w')
+
+                    def onselect(xmin, xmax):
+                        indmin, indmax = np.searchsorted(x1, (xmin, xmax))
+                        indmax = min(len(x1) - 1, indmax)
+                        global H2Ox
+                        global H2Oy
+                        H2Ox = x1[indmin:indmax]
+                        H2Oy = y1[indmin:indmax]
+                        line1.set_data(H2Ox, H2Oy)
+                        ax1.set_xlim(H2Ox[0]-1, H2Ox[-1]+1)
+                        ax1.set_ylim(min(H2Oy)-1, max(H2Oy)+1)
+                        ff1.canvas.draw_idle()
+
+                        def incremental_range(start, stop, inc):
+                            value = start
+                            while value < stop:
+                                yield value
+                                value += inc
+                        global H2OxReset
+                        H2OxReset = list(incremental_range(0,len(H2Ox),TestingIncValue))
+
+                        global h2oAvgEdit
+                        h2oAvgEdit = str(round(mean(H2Oy),2))
+                        global h2oMaxEdit
+                        h2oMaxEdit = str(round(max(H2Oy),2))
+                        global h2oFinalEdit
+                        h2oFinalEdit = str(round(H2Oy[-1],2))
+
+                        # save
+                        np.savetxt("H2O.out", np.c_[H2Ox, H2Oy])
+                    # set useblit True on gtkagg for enhanced performance
+                    span = SpanSelector(a1, onselect, 'horizontal', useblit=True,
+                                        rectprops=dict(alpha=0.5, facecolor='#678176'))
+                    plt.show()
+                
+
+            # ------------------------------------------------------------------------------ #
+            #                           BOTH GRAPHS (H2O AND O2)                             #
+            # ------------------------------------------------------------------------------ #
+            else:
+                #This handles the H2O file and graph
+                h2oPath = os.path.join(folder,H2Ocsv)
+                with open(h2oPath) as csvH2O:
+                    plots = csv.reader(csvH2O, delimiter=',')
+                    for row in plots:
+                        x1.append(float(row[0]))
+                        y1.append(float(row[1]))
+
+                # This handles the header file
+                dualHeaderPath = os.path.join(folder,headercsv)
+                with open(dualHeaderPath) as csvHeaderBoth:
+                    bothheadernew = csv.reader(csvHeaderBoth, delimiter=',')
+                    for row in bothheadernew:
+                        headerdata.append(row[0])
+                    print(headerdata)                
+                    
+                    # This is the current threshold for O2 tests
+                    H2Ospec = 10.00
+                    # This pulls the final (ending) value from the O2 test
+                    lastH2O = (len(y1)-1)
+                    # This checks the final value of the test and determines whether it passed or failed.
+                    if y1[lastH2O] > H2Ospec:
+                        print("H2O Test Result: Out of Spec.")
+                        # This is used to determine the filename
+                        FailedH2OTest = True
+                    else:
+                        print("H2O Test Result: Within Spec.")
+                        FailedH2OTest = False
+
+                #This handles the O2 file and graph
+                o2Path = os.path.join(folder,O2csv)
+                with open(o2Path) as csvO2:
+                    plots = csv.reader(csvO2, delimiter=',')
+                    for row in plots:
+                        x2.append(float(row[0]))
+                        y2.append(float(row[1]))
+
+                    # This is the current threshold for O2 tests
+                    O2spec = 10.00
+                    # This pulls the final (ending) value from the O2 test
+                    lastO2 = (len(y2)-1)
+                    # This checks the final value of the test and determines whether it passed or failed.
+                    if y2[lastO2] > O2spec:
+                        print("O2 Test Result: Out of Spec.")
+                        # This is used to determine the filename
+                        FailedO2Test = True
+                    else:
+                        print("O2 Test Result: Within Spec.")
+                        FailedO2Test = False
+
+                if FailedH2OTest is True and FailedO2Test is True:
+                    print("Both Tests Failed")
+                    tk.Button(top, text="OK", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",50,"bold"), command=BackToSelect).place(height=150,width=880,x=75,y=495)
+                    tk.Label(top, text="Selection Error:", fg="#d73a3a", bg="Grey25", font=("Century Gothic",85, "bold"), justify="center", wraplength=900).place(x=90,y=75)
+                    tk.Label(top, text="The folder you selected contains two failed tests.", fg="white", bg="Grey25", font=("Century Gothic",45, "bold"), justify="center", wraplength=800).place(x=155,y=265)
+
+                elif FailedH2OTest:
+                    #Creates the figure, canvas, and button
+                    f2 = plt.figure(figsize=(10.1,5.6), dpi=100, facecolor=(0.40,0.51,0.46))
+                    a2 = f2.add_subplot(211,facecolor=(0.25,0.25,0.25))
+                    canvas1 = FigureCanvasTkAgg(f2, master=top)
+                    canvas1.get_tk_widget().place(x=10,y=50)
+                    tk.Button(top, text="Save as PDF", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",30,"bold"), command=exportO2).place(height=90,width=500,x=520,y=620)
+                    tk.Button(top, text="Back to Select", fg="white", activeforeground="white", bg="#ff9500", activebackground="#ffab34", font=("century gothic",30,"bold"), command=BackToSelect).place(height=90,width=500,x=10,y=620)
+                    tk.Label(top, text="The         test concluded beyond the acceptable limit and therefore cannot be edited.", fg="#ff9500", bg="grey25", font=("century gothic",19, "bold")).place(x=15,y=7)
+                    tk.Label(top, text="H2O", fg="DodgerBlue", bg="grey25", font=("century gothic",19, "bold")).place(x=65,y=7)
+
+                    #setting the top (original) graph
+                    a2.plot(x2, y2, color='#60d500', linewidth=2)
+                    a2.grid(True)
+                    a2.set_title('Click and drag to select new O2', fontsize=25, pad=12)
+                    a2.set_xlabel('Time in minutes', color="white")
+                    a2.set_ylabel('PPB', color="white")
+                    a2.tick_params(colors='w')
+                    f2.subplots_adjust(top=.90, hspace=0.3)
+                    a2.title.set_color('w')
+
+                    #setting up bottom (edited) graph
+                    ax2 = f2.add_subplot(212,facecolor=(0.25,0.25,0.25))
+                    line2, = ax2.plot(x2, y2, color='#60d500', linewidth=2)
+                    ax2.grid(True)
+                    ax2.set_xlabel('Time in minutes', color="white")
+                    ax2.set_ylabel('PPB', color="white")
+                    ax2.tick_params(colors='w')
+
+                    def onselect(xmin, xmax):
+                        indmin, indmax = np.searchsorted(x2, (xmin, xmax))
+                        indmax = min(len(x2) - 1, indmax)
+                        global O2x
+                        global O2y
+                        O2x = x2[indmin:indmax]
+                        O2y = y2[indmin:indmax]
+                        line2.set_data(O2x, O2y)
+                        ax2.set_xlim(O2x[0]-1, O2x[-1]+1)
+                        ax2.set_ylim(min(O2y)-1, max(O2y)+1)
+                        f2.canvas.draw_idle()
+
+                        def incremental_range(start, stop, inc):
+                            value = start
+                            while value < stop:
+                                yield value
+                                value += inc
+                        global O2xReset
+                        O2xReset = list(incremental_range(0,len(O2x),TestingIncValue))
+                        
+
+                        # save
+                        np.savetxt("O2.out", np.c_[O2x, O2y])
+                    # set useblit True on gtkagg for enhanced performance
+                    span = SpanSelector(a2, onselect, 'horizontal', useblit=True,
+                                        rectprops=dict(alpha=0.5, facecolor='#678176'))
+                    plt.show()
+
+
+                elif FailedO2Test:
+                    ff1 = plt.figure(figsize=(10.1,5.6), dpi=100, facecolor=(0.40,0.51,0.46))
+                    a1 = ff1.add_subplot(211,facecolor=(0.25,0.25,0.25))
+                    canvas2 = FigureCanvasTkAgg(ff1, master=top)
+                    canvas2.get_tk_widget().place(x=10,y=50)
+                    tk.Button(top, text="Save as PDF", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",30,"bold"), command=exportH2O).place(height=90,width=500,x=520,y=620)
+                    tk.Button(top, text="Back to Select", fg="white", activeforeground="white", bg="#ff9500", activebackground="#ffab34", font=("century gothic",30,"bold"), command=BackToSelect).place(height=90,width=500,x=10,y=620)
+                    tk.Label(top, text="The       test concluded beyond the acceptable limit and therefore cannot be edited.", fg="#ff9500", bg="grey25", font=("century gothic",19, "bold")).place(x=24,y=7)
+                    tk.Label(top, text="O2", fg="#60d500", bg="grey25", font=("century gothic",19, "bold")).place(x=75,y=7)
+
+                    #setting the top (original) graph
+                    a1.plot(x1, y1, color='DodgerBlue', linewidth=2)
+                    a1.grid(True)
+                    a1.set_title('Click and drag to select new H2O', fontsize=25, pad=12)
+                    a1.set_xlabel('Time in minutes', color="white")
+                    a1.set_ylabel('PPB', color="white")
+                    a1.tick_params(colors='w')
+                    ff1.subplots_adjust(top=.90, hspace=0.3)
+                    a1.title.set_color('w')
+
+                    #setting up bottom (edited) graph
+                    ax1 = ff1.add_subplot(212,facecolor=(0.25,0.25,0.25))
+                    line1, = ax1.plot(x1, y1, color='DodgerBlue', linewidth=2)
+                    ax1.grid(True)
+                    ax1.set_xlabel('Time in minutes', color="white")
+                    ax1.set_ylabel('PPB', color="white")
+                    ax1.tick_params(colors='w')
+
+                    def onselect(xmin, xmax):
+                        indmin, indmax = np.searchsorted(x1, (xmin, xmax))
+                        indmax = min(len(x1) - 1, indmax)
+                        global H2Ox
+                        global H2Oy
+                        H2Ox = x1[indmin:indmax]
+                        H2Oy = y1[indmin:indmax]
+                        line1.set_data(H2Ox, H2Oy)
+                        ax1.set_xlim(H2Ox[0]-1, H2Ox[-1]+1)
+                        ax1.set_ylim(min(H2Oy)-1, max(H2Oy)+1)
+                        ff1.canvas.draw_idle()
+
+                        def incremental_range(start, stop, inc):
+                            value = start
+                            while value < stop:
+                                yield value
+                                value += inc
+                        global H2OxReset
+                        H2OxReset = list(incremental_range(0,len(H2Ox),TestingIncValue))
+
+                        global h2oAvgEdit
+                        h2oAvgEdit = str(round(mean(H2Oy),2))
+                        global h2oMaxEdit
+                        h2oMaxEdit = str(round(max(H2Oy),2))
+                        global h2oFinalEdit
+                        h2oFinalEdit = str(round(H2Oy[-1],2))
+
+                        # save
+                        np.savetxt("H2O.out", np.c_[H2Ox, H2Oy])
+                    # set useblit True on gtkagg for enhanced performance
+                    span = SpanSelector(a1, onselect, 'horizontal', useblit=True,
+                                        rectprops=dict(alpha=0.5, facecolor='#678176'))
+                    plt.show()
+
+                else:
+                    #Setting up the main figure and canvas for both graphs
+                    ff1 = plt.figure(figsize=(10.1,6), dpi=100, facecolor=(0.40,0.51,0.46))
+                    a1 = ff1.add_subplot(221,facecolor=(0.25,0.25,0.25))
+                    a2 = ff1.add_subplot(222,facecolor=(0.25,0.25,0.25))
+                    canvas3 = FigureCanvasTkAgg(ff1, master=top)
+                    canvas3.get_tk_widget().place(x=10,y=10)
+                    tk.Button(top, text="Save as PDF", fg="white", activeforeground="white", bg="#d73a3a", activebackground="#d94d4d", font=("century gothic",30,"bold"), command=exportBoth).place(height=90,width=500,x=520,y=620)
+                    tk.Button(top, text="Back to Select", fg="white", activeforeground="white", bg="#ff9500", activebackground="#ffab34", font=("century gothic",30,"bold"), command=BackToSelect).place(height=90,width=500,x=10,y=620)
+                    
+                    #Setting up the top H2O graph
+                    a1.plot(x1, y1, color='DodgerBlue', linewidth=2)
+                    a1.grid(True)
+                    a1.set_title('Click and drag to select new H2O',fontsize=15, color="white", pad=15)
+                    a1.set_xlabel('Time in minutes', color="white")
+                    a1.set_ylabel('PPB', color="white")
+                    a1.tick_params(colors='w')
+                    ff1.subplots_adjust(top=.90, hspace=0.3)
+
+                    #Setting up the top O2 graph
+                    a2.plot(x2, y2, color='#60d500', linewidth=2)
+                    a2.grid(True)
+                    a2.set_title('Click and drag to select new O2',fontsize=15, color="white", pad=15)
+                    a2.set_xlabel('Time in minutes', color="white")
+                    a2.set_ylabel('PPB', color="white")
+                    a2.tick_params(colors='w')
+                    ff1.subplots_adjust(top=.90, hspace=0.3, wspace=0.3)
+
+                    #Setting up bottom (edited) H2O graph
+                    ax1 = ff1.add_subplot(223,facecolor=(0.25,0.25,0.25))
+                    line1, = ax1.plot(x1, y1, color='DodgerBlue', linewidth=3)
+                    ax1.grid(True)
+                    ax1.set_xlabel('Time in minutes', color="white")
+                    ax1.set_ylabel('PPB', color="white")
+                    ax1.tick_params(colors='w')
+
+                    #setting up bottom (edited) graph
+                    ax2 = ff1.add_subplot(224,facecolor=(0.25,0.25,0.25))
+                    line2, = ax2.plot(x2, y2, color='#60d500', linewidth=3)
+                    ax2.grid(True)
+                    ax2.set_xlabel('Time in minutes', color="white")
+                    ax2.set_ylabel('PPB', color="white")
+                    ax2.tick_params(colors='w')
+
+                    #This handles the selection of the H2O graph
+                    def onselectH2O(xmin, xmax):
+                        H2Omin, H2Omax = np.searchsorted(x1, (xmin, xmax))
+                        H2Omax = min(len(x1) - 1, H2Omax)
+                        global H2Oxb
+                        global H2Oyb
+                        H2Oxb = x1[H2Omin:H2Omax]
+                        H2Oyb = y1[H2Omin:H2Omax]
+                        line1.set_data(H2Oxb, H2Oyb)
+                        ax1.set_xlim(H2Oxb[0]-1, H2Oxb[-1]+1)
+                        ax1.set_ylim(min(H2Oyb)-1, max(H2Oyb)+1)
+                        ff1.canvas.draw_idle()
+
+                        def incremental_range(start, stop, inc):
+                            value = start
+                            while value < stop:
+                                yield value
+                                value += inc
+                        global H2OxbReset
+                        H2OxbReset = list(incremental_range(0,len(H2Oxb),TestingIncValue))
+
+                        global h2obAvgEdit
+                        h2obAvgEdit = str(round(mean(H2Oyb),2))
+                        global h2obMaxEdit
+                        h2obMaxEdit = str(round(max(H2Oyb),2))
+                        global h2obFinalEdit
+                        h2obFinalEdit = str(round(H2Oyb[-1],2))
+
+                        #Save the selection into a separate .out file
+                        np.savetxt("H2O.out", np.c_[H2Oxb, H2Oyb])
+
+                    #This handles the selected portion of the O2 graph
+                    def onselectO2(xmin, xmax):
+                        O2min, O2max = np.searchsorted(x2, (xmin, xmax))
+                        O2max = min(len(x2) - 1, O2max)
+                        global O2xb
+                        global O2yb
+                        O2xb = x2[O2min:O2max]
+                        O2yb = y2[O2min:O2max]
+                        line2.set_data(O2xb, O2yb)
+                        ax2.set_xlim(O2xb[0]-1, O2xb[-1]+1)
+                        ax2.set_ylim(min(O2yb)-1, max(O2yb)+1)
+                        ff1.canvas.draw_idle()
+
+                        def incremental_range(start, stop, inc):
+                            value = start
+                            while value < stop:
+                                yield value
+                                value += inc
+                        global O2xbReset
+                        O2xbReset = list(incremental_range(0,len(O2xb),TestingIncValue))
+
+                        global o2bAvgEdit
+                        o2bAvgEdit = str(round(mean(O2yb),2))
+                        global o2bMaxEdit
+                        o2bMaxEdit = str(round(max(O2yb),2))
+                        global o2bFinalEdit
+                        o2bFinalEdit = str(round(O2yb[-1],2))
+
+                        #Save the selection into a separate .out file
+                        np.savetxt("O2.out", np.c_[O2xb, O2yb])
+                    # set useblit True on gtkagg for enhanced performance
+                    spanH2O = SpanSelector(a1, onselectH2O, 'horizontal', useblit=True,
+                                        rectprops=dict(alpha=0.5, facecolor='#678176'))
+                    spanO2 = SpanSelector(a2, onselectO2, 'horizontal', useblit=True,
+                                        rectprops=dict(alpha=0.5, facecolor='#678176'))
+                    plt.show()
+
+
+
+        #--------------------------------------------------------------------------------#
+        #                                  COMMANDS                                      #
+        #--------------------------------------------------------------------------------#
+        def BackToSelect():
+            top.destroy()
+
+        def exportH2O():
+            # Export as PNG to attach to the PDF
+            fig = plt.figure(figsize=(11.25,6))
+            plt.clf()
+            plt.plot(H2OxReset, H2Oy, color='royalblue', marker='.', linewidth=5)
+            plt.margins(0.01,0.05)
+            plt.title('Meeco Moisture Analyzer', fontsize=18, pad=15)
+            plt.xlabel('Time in Minutes', fontsize=14)
+            plt.ylabel('PPB', fontsize=14)
+            plt.grid(True)
+            fig.savefig("PDFpltH2O.png")
+            plt.close()
+            top.destroy()
+
+            pdf = FPDF()
+            pdf.set_font("Arial", size=12)
+            pdf.add_page()
+            pdf.image("PDFpltH2O.png", x=-5, y=26, w=217, h=116)
+            pdf.image('/home/pi/Desktop/JoelPi/Logo/QPDFH.png', x=10, y=10, w=186, h=20) #------- ADJUST THE FILEPATH BASED ON WHERE THE IMAGE IS LOCATED
+            #pdf.image('//Mac/Home/Downloads/QAMletter2.jpg', x=10, y=11, w=52, h=20)
+            #pdf.image('//Mac/Home/Downloads/QAMletter2.jpg', x=80, y=7, w=50, h=20)
+            #pdf.image('//Mac/Home/Downloads/QAMletter1.jpg', x=135, y=10, w=65, h=21)
+
+            # ADDING HEADER INFO TO THE PDF REPORT
+            # Spacing block
+            pdf.cell(190,132,ln=2)
+            # First block (client, location, serial #)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Client:', align='L', ln=0)
+            pdf.cell(35,7,'Calibration Date:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[2]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[13]),border=1,ln=1) #------- ADJUST "headerH2O" TO "hheaderlist" IN FINAL BUILD
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Location:', align='L', ln=0)
+            pdf.cell(35,7,'Specification:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[1]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[15]),border=1,ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Instrument Serial #:', align='L', ln=0)
+            pdf.cell(35,7,'Instrument Flow:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[12]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7, str(headerdata[14])+' SLPM',border=1,ln=1)
+
+            # Second block (calibration date, spec., flow)
+            pdf.cell(95,11, ln=2)
+            pdf.cell(30,7, 'Test Gas:', align='R',ln=0)
+            pdf.cell(60,7,str(headerdata[3]),border=1,ln=0)
+            pdf.cell(40,7, 'Start Time:', align='R',ln=0)
+            pdf.cell(55,7,str(headerdata[16]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'Source Gas:', align='R',ln=0)
+            pdf.cell(60,7,str(headerdata[4]),border=1,ln=0)
+            pdf.cell(40,7, 'Stop Time:', align='R',ln=0)
+            pdf.cell(55,7,str(headerdata[17]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7,'Test Point ID:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[0]),border=1,ln=0)
+            pdf.cell(40,7, 'Maximum:', align='R',ln=0)
+            pdf.cell(55,7,h2oMaxEdit + ' PPB',border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'Technician:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[5]),border=1,ln=0)
+            pdf.cell(40,7, 'Average:', align='R',ln=0)
+            pdf.cell(55,7,h2oAvgEdit + ' PPB',border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'System Flow:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[6])+' SLPM',border=1,ln=0)
+            pdf.cell(40,7, 'Final:', align='R',ln=0)
+            pdf.cell(55,7,h2oFinalEdit + ' PPB',border=1,ln=1)
+
+            # Third block (comments and approval)
+            pdf.cell(195,12,ln=2)
+            pdf.cell(25,14, 'Comments:', align='R',ln=0)
+            pdf.cell(160,14,str(headerdata[7]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(25,10, 'Approval:', align='R',ln=0)
+            pdf.cell(160,10,border=1,ln=1)
+
+            # This saves the PDF file to the current working folder
+            EditedFilenameH2O = "FinalReport(H2O).pdf"
+            pdf.output(EditedFilenameH2O)     #-------(EDIT THIS TO ADJUST THE FINAL ADJUSTED PDF FILENAME)
+            pdf=FPDF(orientation='P', unit='in')
+
+            # Open the newly created PDF using Chrome
+            #chrome_path = ('C:\Program Files (x86)\Google\Chrome\Application\chrome.exe')
+            #p = subprocess.Popen([chrome_path, "file:"+folder+"/"+EditedFilenameH2O]) #This uses 'Subprocess' to open the file
+            os.popen("pdfviewer " + folder + "FinalReport(H2O).pdf")
+            #returncode = p.wait() #This waits for the process to close
 
         def exportO2():
-                savepath = filedialog.asksaveasfilename(initialdir="/Desktop", title="Save the file", filetypes=(("PDF files","*.pdf"),("all files","*.*")))
-                if savepath:
-                    # This populates the data from the CSV file into the x2 and y2 variables
-                    with open(filepath2) as csvfile:
-                        csv.reader(csvfile, delimiter=',')
-                    
-                    o2_pdfdata = [['Test Point ID:', str(oheaderlist[0]), 'Calibration Date:', str(oheaderlist[8])],
-                    ['Client:', str(oheaderlist[1]), 'Specification:', str(oheaderlist[10])],
-                    ['Instrument Serial Number:', str(oheaderlist[7]), 'Instrument Flow:', str(oheaderlist[9])],
-                    ['Test Gas:', str(oheaderlist[2]), 'Start Time:', str(oheaderlist[15])],
-                    ['Source Gas:', str(oheaderlist[3]), 'Stop Time:', str(oheaderlist[16])],
-                    ['System Flow:', str(oheaderlist[5]), 'Maximum:', o2Maxvalue],
-                    ['Technicion:', str(oheaderlist[4]), 'Average:', o2Meanvalue],
-                    ['Comments:', str(oheaderlist[6]), 'Final:', o2Finalvalue]
-                    ]
-                    print(o2_pdfdata)
-                    pdf = FPDF()
-                    pdf.set_font("Arial", size=10)
-                    pdf.add_page()
-                    pdf.image('o2pdfplt.png')
-                    
-                    col_width = pdf.w / 5.5
-                    row_height = pdf.font_size*1.8
-                    for row in o2_pdfdata:
-                        for item in row:
-                            pdf.cell(col_width, row_height,
-                                     txt=item, border=1)
-                        pdf.ln(row_height)
-                        
-                    pdf.output(savepath)
-                else:
-                    print("Cancelled")
+            # Export as PNG to attach to the PDF
+            fig = plt.figure(figsize=(11.25,6))
+            plt.clf()
+            plt.plot(O2xReset, O2y, color='forestgreen', marker='.', linewidth=5)
+            plt.margins(0.01,0.05)
+            plt.title('Delta F Oxygen Analyzer', fontsize=18, pad=14)
+            plt.xlabel('Time in Minutes', fontsize=14)
+            plt.ylabel('PPB', fontsize=14)
+            plt.grid(True)
+            fig.savefig("PDFpltO2.png")
+            plt.close()
+            top.destroy()
+
+            pdf = FPDF()
+            pdf.set_font("Arial", size=12)
+            pdf.add_page()
+            pdf.image("PDFpltO2.png", x=-5, y=26, w=217, h=116)
+            pdf.image('/home/pi/Desktop/JoelPi/Logo/QPDFH.png', x=10, y=10, w=186, h=20)     #------- ADJUST THE FILEPATH BASED ON WHERE THE IMAGE IS LOCATED
+            #pdf.image('//Mac/Home/Downloads/QAMletter2.jpg', x=10, y=1, w=55, h=20)
+            #pdf.image('//Mac/Home/Downloads/QAMletter1.jpg', x=135, y=10, w=65, h=21)
+
+            # ADDING HEADER INFO TO THE PDF REPORT
+            # Spacing block
+            pdf.cell(190,132,ln=2)
+            # First block (client, location, serial #)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Client:', align='L', ln=0)
+            pdf.cell(35,7,'Calibration Date:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[2]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[9]),border=1,ln=1) #------- ADJUST "headerH2O" TO "hheaderlist" IN FINAL BUILD
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Location:', align='L', ln=0)
+            pdf.cell(35,7,'Specification:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[1]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[11]),border=1,ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Instrument Serial #:', align='L', ln=0)
+            pdf.cell(35,7,'Instrument Flow:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[8]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[10])+' SLPM',border=1,ln=1)
+
+            # Second block (calibration date, spec., flow)
+            pdf.cell(95,11, ln=2)
+            pdf.cell(30,7, 'Test Gas:', align='R',ln=0)
+            pdf.cell(60,7,str(headerdata[3]),border=1,ln=0)
+            pdf.cell(40,7, 'Start Time:', align='R',ln=0)
+            pdf.cell(55,7,str(headerdata[16]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'Source Gas:', align='R',ln=0)
+            pdf.cell(60,7,str(headerdata[4]),border=1,ln=0)
+            pdf.cell(40,7, 'Stop Time:', align='R',ln=0)
+            pdf.cell(55,7,str(headerdata[17]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7,'Test Point ID:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[0]),border=1,ln=0)
+            pdf.cell(40,7, 'Maximum:', align='R',ln=0)
+            pdf.cell(55,7,o2MaxEdit + ' PPB',border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'Technician:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[5]),border=1,ln=0)
+            pdf.cell(40,7, 'Average:', align='R',ln=0)
+            pdf.cell(55,7,o2AvgEdit + ' PPB',border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'System Flow:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[6])+' SLPM',border=1,ln=0)
+            pdf.cell(40,7, 'Final:', align='R',ln=0)
+            pdf.cell(55,7,o2FinalEdit + ' PPB',border=1,ln=1)
+
+            # Third block (comments and approval)
+            pdf.cell(195,12,ln=2)
+            pdf.cell(25,14, 'Comments:', align='R',ln=0)
+            pdf.cell(160,14,str(headerdata[7]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(25,10, 'Approval:', align='R',ln=0)
+            pdf.cell(160,10,border=1,ln=1)
+
+
+            # This saves the PDF file to the current working folder
+            EditedFilenameO2 = "FinalReport(O2).pdf"
+            pdf.output(EditedFilenameO2)     #-------(EDIT THIS TO ADJUST THE FINAL ADJUSTED PDF FILENAME)
+            pdf=FPDF(orientation='P', unit='in', format='Letter')
+
+            # Open the newly created PDF using Chrome
+            #chrome_path = ('C:\Program Files (x86)\Google\Chrome\Application\chrome.exe')
+            #p = subprocess.Popen([chrome_path, "file:"+folder+"/"+EditedFilenameO2]) #This uses 'Subprocess' to open the file
+            os.popen("pdfviewer " + folder + "FinalReport(O2).pdf")
+            #returncode = p.wait() #This waits for the process to close
 
         def exportBoth():
-                savepath = filedialog.asksaveasfilename(initialdir="/Desktop", title="Save the file", filetypes=(("PDF files","*.pdf"),("all files","*.*")))
-                if savepath:
-                    # This populates the data from the CSV file into the x1 and y1 variables
-                    with open(filepath1) as csvfile:
-                        csv.reader(csvfile, delimiter=',')
+            # Export as O2 graph as PNG to attach to the PDF
+            figO2 = plt.figure(figsize=(11.25,6))
+            plt.clf()
+            plt.plot(O2xbReset, O2yb, color='forestgreen', marker='.', linewidth=5)
+            plt.margins(0.01,0.05)
+            plt.title('Delta F Oxygen Analyzer', fontsize=18, pad=15)
+            plt.xlabel('Time in Minutes', fontsize=14)
+            plt.ylabel('PPB', fontsize=14)
+            plt.grid(True)
+            figO2.savefig("PDFpltO2.png")
+            plt.close()
 
-                    # This populates the data from the CSV file into the x2 and y2 variables
-                    with open(filepath2) as csvfile:
-                        csv.reader(csvfile, delimiter=',')
-                    
-                    # This plots the data on a graph, using the matplotlib plt function
-                    o2_pdfdata = [['Test Point ID:', str(oheaderlist[0]), 'Calibration Date:', str(oheaderlist[8])],
-                    ['Client:', str(oheaderlist[1]), 'Specification:', str(oheaderlist[10])],
-                    ['Instrument Serial Number:', str(oheaderlist[7]), 'Instrument Flow:', str(oheaderlist[9])],
-                    ['Test Gas:', str(oheaderlist[2]), 'Start Time:', str(oheaderlist[15])],
-                    ['Source Gas:', str(oheaderlist[3]), 'Stop Time:', str(oheaderlist[16])],
-                    ['System Flow:', str(oheaderlist[5]), 'Maximum:', o2Maxvalue],
-                    ['Technicion:', str(oheaderlist[4]), 'Average:', o2Meanvalue],
-                    ['Comments:', str(oheaderlist[6]), 'Final:', o2Finalvalue]
-                    ]
-                    print(o2_pdfdata)
-                    pdf = FPDF()
-                    pdf.set_font("Arial",size=16)
-                    pdf.add_page()
-                    pdf.cell(45)
-                    pdf.cell(20,10,'Delta F Oxygen Analyzer',1,1,'C')
-                    pdf.image('o2pdfplt.png')
-                    
-                    
-                    pdf.set_font("Arial",size=10)
-                    col_width = pdf.w / 5.5
-                    row_height = pdf.font_size*1.8
-                    for row in o2_pdfdata:
-                        for item in row:
-                            pdf.cell(col_width, row_height,
-                                     txt=item, border=1)
-                        pdf.ln(row_height)
-                    
-                    
-                    h2o_pdfdata = [['Test Point ID:', str(hheaderlist[0]), 'Calibration Date:', str(hheaderlist[12])],
-                    ['Client:', str(hheaderlist[1]), 'Specification:', str(hheaderlist[14])],
-                    ['Instrument Serial#:', str(hheaderlist[11]), 'Instrument Flow:', str(hheaderlist[13])],
-                    ['Test Gas:', str(hheaderlist[2]), 'Start Time:', str(hheaderlist[15])],
-                    ['Technician:', str(hheaderlist[4]), 'Stop Time:', str(hheaderlist[16])],
-                    ['Source Gas:', str(hheaderlist[3]), 'Stop Time:', str(hheaderlist[16])],
-                    ['System Flow:', str(hheaderlist[5]), 'Maximum:', h2oMaxvalue],
-                    ['Technicion:', str(hheaderlist[4]), 'Average:', h2oMeanvalue],
-                    ['Comments:', str(hheaderlist[6]), 'Final:', h2oFinalvalue]
-                    ]
-                    pdf.set_font("Arial", size=10)
-                    pdf.add_page()
-                    pdf.image('h2opdfplt.png')
-                    
-                    col_width = pdf.w / 5.5
-                    row_height = pdf.font_size*1.8
-                    for row in h2o_pdfdata:
-                        for item in row:
-                            pdf.cell(col_width, row_height,
-                                     txt=item, border=1)
-                        pdf.ln(row_height)
-                        
-                    pdf.output(savepath)
-                    
-                    
-                    
-                else:
-                    print("Cancelled")
+            # Export H2O graph as PNG to attach to the PDF
+            figH2O = plt.figure(figsize=(11.25,6))
+            plt.clf()
+            plt.plot(H2OxbReset, H2Oyb, color='royalblue', marker='.', linewidth=5)
+            plt.margins(0.01,0.05)
+            plt.title('Meeco Moisture Analyzer', fontsize=18, pad=15)
+            plt.xlabel('Time in Minutes', fontsize=14)
+            plt.ylabel('PPB', fontsize=14)
+            plt.grid(True)
+            figH2O.savefig("PDFpltH2O.png")
+            plt.close()
+            top.destroy()
+
+            # Create the first page of the PDF (O2)
+            pdf = FPDF()
+            pdf.set_font("Arial", size=12)
+            pdf.add_page()
+            pdf.image("PDFpltO2.png", x=-5, y=26, w=217, h=116)
+            pdf.image('/home/pi/Desktop/JoelPi/Logo/QPDFH.png', x=10, y=10, w=186, h=20) #------- ADJUST THE FILEPATH BASED ON WHERE THE IMAGE IS LOCATED
+            #pdf.image('//Mac/Home/Downloads/QAMletter2.jpg', x=10, y=11, w=52, h=20)     
+            #pdf.image('//Mac/Home/Downloads/QAMletter2.jpg', x=80, y=7, w=50, h=20)
+            #pdf.image('//Mac/Home/Downloads/QAMletter1.jpg', x=135, y=10, w=65, h=21)
+
+            # ADDING HEADER INFO TO THE PDF REPORT
+            # Spacing block
+            pdf.cell(190,132,ln=2)
+            # First block (client, location, serial #)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Client:', align='L', ln=0)
+            pdf.cell(35,7,'Calibration Date:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[2]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[9]),border=1,ln=1) #------- ADJUST "headerH2O" TO "hheaderlist" IN FINAL BUILD
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Location:', align='L', ln=0)
+            pdf.cell(35,7,'Specification:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[1]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[11]),border=1,ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Instrument Serial #:', align='L', ln=0)
+            pdf.cell(35,7,'Instrument Flow:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[8]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[10])+' SLPM',border=1,ln=1)
+
+            # Second block (calibration date, spec., flow)
+            pdf.cell(95,11, ln=2)
+            pdf.cell(30,7, 'Test Gas:', align='R',ln=0)
+            pdf.cell(60,7,str(headerdata[3]),border=1,ln=0)
+            pdf.cell(40,7, 'Start Time:', align='R',ln=0)
+            pdf.cell(55,7,str(headerdata[16]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'Source Gas:', align='R',ln=0)
+            pdf.cell(60,7,str(headerdata[4]),border=1,ln=0)
+            pdf.cell(40,7, 'Stop Time:', align='R',ln=0)
+            pdf.cell(55,7,str(headerdata[17]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7,'Test Point ID:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[0]),border=1,ln=0)
+            pdf.cell(40,7, 'Maximum:', align='R',ln=0)
+            pdf.cell(55,7,o2bMaxEdit + ' PPB',border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'Technician:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[5]),border=1,ln=0)
+            pdf.cell(40,7, 'Average:', align='R',ln=0)
+            pdf.cell(55,7,o2bAvgEdit + ' PPB',border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'System Flow:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[6])+' SLPM',border=1,ln=0)
+            pdf.cell(40,7, 'Final:', align='R',ln=0)
+            pdf.cell(55,7,o2bFinalEdit + ' PPB',border=1,ln=1)
+
+            # Third block (comments and approval)
+            pdf.cell(195,12,ln=2)
+            pdf.cell(25,14, 'Comments:', align='R',ln=0)
+            pdf.cell(160,14,str(headerdata[7]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(25,10, 'Approval:', align='R',ln=0)
+            pdf.cell(160,10,border=1,ln=1)
+            
+            # Add the second page of the PDF (H2O)
+            pdf.add_page()
+            pdf.image("PDFpltH2O.png", x=-5, y=26, w=217, h=116)
+            pdf.image('/home/pi/Desktop/JoelPi/Logo/QPDFH.png', x=10, y=10, w=186, h=20) #------- ADJUST THE FILEPATH BASED ON WHERE THE IMAGE IS LOCATED
+            #pdf.image('//Mac/Home/Downloads/QAMletter2.jpg', x=10, y=11, w=52, h=20)     
+            #pdf.image('//Mac/Home/Downloads/QAMletter2.jpg', x=80, y=7, w=50, h=20)
+            #pdf.image('//Mac/Home/Downloads/QAMletter1.jpg', x=135, y=10, w=65, h=21)
+
+            # ADDING HEADER INFO TO THE PDF REPORT
+            # Spacing block
+            pdf.cell(190,132,ln=2)
+            # First block (client, location, serial #)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Client:', align='L', ln=0)
+            pdf.cell(35,7,'Calibration Date:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[2]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[13]),border=1,ln=1) #------- ADJUST "headerH2O" TO "hheaderlist" IN FINAL BUILD
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Location:', align='L', ln=0)
+            pdf.cell(35,7,'Specification:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[1]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7,str(headerdata[15]),border=1,ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(116,7,'Instrument Serial #:', align='L', ln=0)
+            pdf.cell(35,7,'Instrument Flow:', align='L', ln=1)
+            pdf.cell(4,10,ln=0)
+            pdf.cell(95,7,str(headerdata[12]),border=1,ln=0)
+            pdf.cell(21,7,ln=0)
+            pdf.cell(65,7, str(headerdata[14])+' SLPM',border=1,ln=1)
+
+            # Second block (calibration date, spec., flow)
+            pdf.cell(95,11, ln=2)
+            pdf.cell(30,7, 'Test Gas:', align='R',ln=0)
+            pdf.cell(60,7,str(headerdata[3]),border=1,ln=0)
+            pdf.cell(40,7, 'Start Time:', align='R',ln=0)
+            pdf.cell(55,7,str(headerdata[16]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'Source Gas:', align='R',ln=0)
+            pdf.cell(60,7,str(headerdata[4]),border=1,ln=0)
+            pdf.cell(40,7, 'Stop Time:', align='R',ln=0)
+            pdf.cell(55,7,str(headerdata[17]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7,'Test Point ID:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[0]),border=1,ln=0)
+            pdf.cell(40,7, 'Maximum:', align='R',ln=0)
+            pdf.cell(55,7,h2obMaxEdit + ' PPB',border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'Technician:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[5]),border=1,ln=0)
+            pdf.cell(40,7, 'Average:', align='R',ln=0)
+            pdf.cell(55,7,h2obAvgEdit + ' PPB',border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(30,7, 'System Flow:', align='R', ln=0)
+            pdf.cell(60,7,str(headerdata[6])+' SLPM',border=1,ln=0)
+            pdf.cell(40,7, 'Final:', align='R',ln=0)
+            pdf.cell(55,7,h2obFinalEdit + ' PPB',border=1,ln=1)
+
+            # Third block (comments and approval)
+            pdf.cell(195,12,ln=2)
+            pdf.cell(25,14, 'Comments:', align='R',ln=0)
+            pdf.cell(160,14,str(headerdata[7]),border=1,ln=1)
+            pdf.cell(190,2,ln=1)
+            pdf.cell(25,10, 'Approval:', align='R',ln=0)
+            pdf.cell(160,10,border=1,ln=1)
+
+            # This saves the PDF file to the current working folder
+            EditedFilenameBoth = "FinalReport(Both).pdf"
+            pdf.output(EditedFilenameBoth)     #-------(EDIT THIS TO ADJUST THE FINAL ADJUSTED PDF FILENAME)
+            pdf=FPDF(orientation='P', unit='in')
+
+            # Open the newly created PDF using Chrome
+            #chrome_path = ('C:\Program Files (x86)\Google\Chrome\Application\chrome.exe')
+            #p = subprocess.Popen([chrome_path, "file:"+folder+"/"+EditedFilenameBoth])
+            print("pdfviewer " + folder + "/FinalReport(Both).pdf")
+            os.popen("pdfviewer " + folder + "/FinalReport(Both).pdf")
+            #returncode = p.wait() #This waits for the process to close
+                
+
+        #--------------------------------------------------------------------------------#
+        #                                  MAIN WINDOW                                   #
+        #--------------------------------------------------------------------------------#
+        root = tk.Tk()
+        root.title('Pi View')
+        root.resizable(False, False)
+        root.config(bg="Grey25")
+        # Width and height for the Tk root window
+        w = 1030
+        h = 720
+        # This gets the current screen width and height
+        ws = root.winfo_screenwidth()
+        hs = root.winfo_screenheight()
+        # Calculate the x and y coordinates based on the current screen size
+        sx = (ws/2) - (w/2)
+        sy = (hs/2) - (h/2)
+        # Open the root window in the middle of the screen
+        root.geometry('%dx%d+%d+%d' % (w, h, sx, sy))
+
+        #--------------------------------------------
+        # QAM LOGO
+        #--------------------------------------------
+        QAMmd = Image.open('QAM.gif')
+        imgSplash = ImageTk.PhotoImage(QAMmd, master=root)
+        imgg = tk.Label(root, image=imgSplash, borderwidth=0, highlightthickness=0)
+        imgg.image = imgSplash
+        imgg.place(x=625, y=75)
+
+        #--------------------------------------------
+        # BUTTON IMAGES
+        #--------------------------------------------
+        dashIcon = ImageTk.PhotoImage(file = r"dashboard.png", master=root)
+        folderIcon = ImageTk.PhotoImage(file = r"foldersolid.png", master=root)
+
+        tk.Button(root, text="Select Folder", font=("century gothic",50,"bold"), fg="white", activeforeground="white", bg="#ff9500", activebackground="#ffab34", image=folderIcon, compound = "left", padx=30, command=openCSV).place(height=150,width=880,x=75,y=495)
+        tk.Button(root, text="Dashboard", font=("Century Gothic",31, "bold"), fg="white", activeforeground="white", bg="#678176", activebackground="#81a6a3", image=dashIcon, compound = "left", padx=25, command=root.destroy).place(height=125, width=350,x=75,y=75)
+        tk.Label(root, text="Select the folder with the correct Name, ID, Test Type, and Date", fg="White", bg="Grey25", font=("Century Gothic",40, "bold"), justify="center", wraplength=850).place(x=100,y=280)
+
+        root.mainloop()
         
         
         
@@ -2143,7 +2990,6 @@ class PageTwo(tk.Frame):
         
 app = RPiReader()
 
-#ani2 = animation.FuncAnimation(f2, PageOne.animateh2o, interval=1000)
-ani1 = animation.FuncAnimation(f1, PageOne.animateo2, interval=10000)
+ani1 = animation.FuncAnimation(f1, animateo2, interval=1000)
 
 app.mainloop()
